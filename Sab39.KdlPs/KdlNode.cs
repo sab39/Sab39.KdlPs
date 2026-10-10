@@ -18,7 +18,7 @@ public sealed class KdlNode
         NodeProperties = nodeProperties;
         ChildNodes = childNodes;
         RawNodeElements = rawNodeElements;
-        ConvenienceMembers = PropertyMemberNames.Plan(nodeProperties);
+        ConvenienceMembers = GeneratedMembers.Plan(nodeArguments, nodeProperties);
     }
 
     public string NodeName { get; }

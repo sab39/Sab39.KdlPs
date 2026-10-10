@@ -8,6 +8,8 @@
     PowerShellVersion = '7.6'
     CompatiblePSEditions = @('Core')
 
+    FormatsToProcess = @('Sab39.KdlPs.format.ps1xml')
+
     # Explicit lists rather than wildcards, so PowerShell can tell what the module exports without loading it.
     CmdletsToExport = @('Get-KdlNode')
     FunctionsToExport = @()

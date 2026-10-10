@@ -3,9 +3,10 @@ using System.Text;
 namespace Sab39.KdlPs;
 
 /// <summary>
-/// Decides which KDL properties become generated members on a node, and what they're called.
+/// Decides which convenience members a node gets, and what they're called: one per KDL property, plus
+/// Arg1, Arg2... for its arguments, and Argument when it has exactly one.
 /// </summary>
-internal static class PropertyMemberNames
+internal static class GeneratedMembers
 {
     /// <summary>
     /// Capitalizes each run of letters and digits and drops everything else, so first-name,
@@ -32,12 +33,30 @@ internal static class PropertyMemberNames
     }
 
     /// <summary>
-    /// Takes properties with distinct keys in source order, and returns the members to generate.
+    /// Takes the arguments, and the properties with distinct keys in source order, and returns the
+    /// members to generate - argument members first.
+    /// </summary>
+    public static IReadOnlyList<KeyValuePair<string, object?>> Plan(
+        IReadOnlyList<object?> arguments,
+        IEnumerable<KeyValuePair<string, object?>> properties)
+    {
+        var propertyMembers = PlanProperties(properties);
+
+        // The document's own properties win over these, the same way a real name property wins over
+        // the Name alias.
+        HashSet<string> claimed = new(propertyMembers.Select(m => m.Key), StringComparer.OrdinalIgnoreCase);
+        var argumentMembers = arguments.Select((value, index) => new KeyValuePair<string, object?>($"Arg{index + 1}", value));
+        if (arguments.Count == 1) argumentMembers = argumentMembers.Prepend(new("Argument", arguments[0]));
+
+        return [.. argumentMembers.Where(m => !claimed.Contains(m.Key)), .. propertyMembers];
+    }
+
+    /// <summary>
     /// Keys converting to the same member name - case-insensitively, as PowerShell compares them -
     /// produce one member: a key already spelled exactly as its member name wins, and otherwise the
     /// first key does.
     /// </summary>
-    public static IReadOnlyList<KeyValuePair<string, object?>> Plan(IEnumerable<KeyValuePair<string, object?>> properties)
+    private static List<KeyValuePair<string, object?>> PlanProperties(IEnumerable<KeyValuePair<string, object?>> properties)
     {
         var candidates = properties
             .Select(p => (Property: p, Name: ToPascalCase(p.Key)))

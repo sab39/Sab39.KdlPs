@@ -1,7 +1,7 @@
 namespace Sab39.KdlPs.Tests;
 
 [TestClass]
-public sealed class PropertyMemberNamesTests
+public sealed class GeneratedMembersTests
 {
     [TestMethod]
     [DataRow("first-name", "FirstName")]
@@ -14,7 +14,7 @@ public sealed class PropertyMemberNamesTests
     [DataRow("née", "Née")]
     [DataRow("--", "")]
     public void ConvertsToPascalCase(string key, string expected)
-        => Assert.AreEqual(expected, PropertyMemberNames.ToPascalCase(key));
+        => Assert.AreEqual(expected, GeneratedMembers.ToPascalCase(key));
 
     [TestMethod]
     public void FirstKeyWinsAmongConvertedNames()
@@ -40,9 +40,40 @@ public sealed class PropertyMemberNamesTests
     public void MembersFollowSourceOrder()
         => AssertPlan([("b", 1), ("a", 2), ("c", 3)], [("B", 1), ("A", 2), ("C", 3)]);
 
+    [TestMethod]
+    public void SingleArgumentGetsArgumentAndArg1()
+        => AssertPlan(["x"], [], [("Argument", "x"), ("Arg1", "x")]);
+
+    [TestMethod]
+    public void SeveralArgumentsGetNumberedMembersOnly()
+        => AssertPlan([1, 2, 3], [], [("Arg1", 1), ("Arg2", 2), ("Arg3", 3)]);
+
+    [TestMethod]
+    public void NoArgumentsGetNoArgumentMembers()
+        => AssertPlan([], [("a", 1)], [("A", 1)]);
+
+    [TestMethod]
+    public void ArgumentMembersComeBeforePropertyMembers()
+        => AssertPlan(["x"], [("a", 1)], [("Argument", "x"), ("Arg1", "x"), ("A", 1)]);
+
+    [TestMethod]
+    public void PropertiesWinOverArgumentMembers()
+        => AssertPlan(["x", "y"], [("arg1", 1), ("ARGUMENT", 2)], [("Arg2", "y"), ("Arg1", 1), ("ARGUMENT", 2)]);
+
+    [TestMethod]
+    public void PropertiesWinOverTheSingleArgumentMember()
+        => AssertPlan(["x"], [("argument", 1)], [("Arg1", "x"), ("Argument", 1)]);
+
+    private static void AssertPlan(object?[] arguments, (string Key, object? Value)[] properties, (string Name, object? Value)[] expected)
+    {
+        var plan = GeneratedMembers.Plan(arguments, properties.Select(p => new KeyValuePair<string, object?>(p.Key, p.Value)));
+
+        CollectionAssert.AreEqual(expected, plan.Select(m => (m.Key, m.Value)).ToArray());
+    }
+
     private static void AssertPlan((string Key, object? Value)[] properties, (string Name, object? Value)[] expected)
     {
-        var plan = PropertyMemberNames.Plan(properties.Select(p => new KeyValuePair<string, object?>(p.Key, p.Value)));
+        var plan = GeneratedMembers.Plan([], properties.Select(p => new KeyValuePair<string, object?>(p.Key, p.Value)));
 
         CollectionAssert.AreEqual(expected, plan.Select(m => (m.Key, m.Value)).ToArray());
     }

@@ -1,0 +1,50 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  A table view can't grow a column per generated member, since those vary node by node, so the
+  Properties column renders NodeProperties instead. The members themselves are still there for
+  Select-Object and Where-Object.
+-->
+<Configuration>
+  <ViewDefinitions>
+    <View>
+      <Name>KdlNode</Name>
+      <ViewSelectedBy>
+        <TypeName>Sab39.KdlPs.KdlNode</TypeName>
+      </ViewSelectedBy>
+      <TableControl>
+        <TableHeaders>
+          <TableColumnHeader>
+            <Label>NodeName</Label>
+          </TableColumnHeader>
+          <TableColumnHeader>
+            <Label>Arguments</Label>
+          </TableColumnHeader>
+          <TableColumnHeader>
+            <Label>Properties</Label>
+          </TableColumnHeader>
+          <TableColumnHeader>
+            <Label>ChildNodes</Label>
+          </TableColumnHeader>
+        </TableHeaders>
+        <TableRowEntries>
+          <TableRowEntry>
+            <TableColumnItems>
+              <TableColumnItem>
+                <PropertyName>NodeName</PropertyName>
+              </TableColumnItem>
+              <TableColumnItem>
+                <ScriptBlock>($_.NodeArguments | ForEach-Object { if ($null -eq $_) { '#null' } else { "$_" } }) -join ' '</ScriptBlock>
+              </TableColumnItem>
+              <TableColumnItem>
+                <ScriptBlock>($_.NodeProperties.GetEnumerator() | ForEach-Object { "$($_.Key)=$(if ($null -eq $_.Value) { '#null' } else { $_.Value })" }) -join ' '</ScriptBlock>
+              </TableColumnItem>
+              <TableColumnItem>
+                <ScriptBlock>$_.ChildNodes -join ', '</ScriptBlock>
+              </TableColumnItem>
+            </TableColumnItems>
+          </TableRowEntry>
+        </TableRowEntries>
+      </TableControl>
+    </View>
+  </ViewDefinitions>
+</Configuration>

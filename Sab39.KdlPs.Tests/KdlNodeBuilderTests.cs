@@ -32,6 +32,15 @@ public sealed class KdlNodeBuilderTests
     }
 
     [TestMethod]
+    public void ConvenienceMembersIncludeArguments()
+    {
+        var (node, _) = Build("author \"Ada Lovelace\" email=(email)\"ada@example.com\" role=lead");
+
+        CollectionAssert.AreEqual(new[] { "Argument", "Arg1", "Email", "Role" }, node.ConvenienceMembers.Select(m => m.Key).ToArray());
+        Assert.AreEqual("Ada Lovelace", node.ConvenienceMembers[0].Value);
+    }
+
+    [TestMethod]
     public void PropertyKeysAreCaseSensitive()
     {
         var (node, _) = Build("n Name=1 name=2");

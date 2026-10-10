@@ -42,6 +42,12 @@ Here `x` is a node whose arguments are `["int", 1]`. In KDL v2, bare identifiers
   - Decimal numbers: `f32`, `f64`, `decimal64`, `decimal128`.
   - Strings: `date-time`, `time`, `date`, `duration`, `decimal`, `currency`, `country-2`, `country-3`, `country-subdivision`, `email`, `idn-email`, `hostname`, `idn-hostname`, `ipv4`, `ipv6`, `url`, `url-reference`, `irl`, `irl-reference`, `url-template`, `uuid`, `regex`, `base64`, `base85`.
 
+## Parameters of `Get-KdlNode`
+
+- **Input:** one of `-Path` (wildcards, positional, from the pipeline), `-LiteralPath` (aliased `PSPath`, so `Get-ChildItem` output binds), or `-Text` (KDL source as a string).
+- **`-Query`:** a KDL query, executed by KdlSharp. Only the nodes it matches are output. An invalid query is a terminating error.
+- **`-Recurse`:** outputs each node, then all its descendants, depth-first. If a query matches both a node and one of its descendants, the descendant is output twice.
+
 ## Output of `Get-KdlNode`
 
 Each node becomes an object with the members below. The fixed members are prefixed with `Node` so that they don't collide with properties that are likely in real documents, such as `name=`.
@@ -54,6 +60,11 @@ Each node becomes an object with the members below. The fixed members are prefix
   - `[0]` is the node name itself, so its annotation is captured too.
   - Arguments and properties follow, interleaved as written. Property entries carry their key, and overridden duplicates are kept.
   - The interleaving is best effort, because of the keyword-position gap in KdlSharp (see the findings below). That gap is to be fixed in the KdlSharp patch or fork, along with the raw text. Tests for the correct behaviour already exist and are marked as expected failures.
+- Generated convenience members for the arguments:
+  - `Arg1`, `Arg2` and so on, one per argument.
+  - `Argument` as well, when the node has exactly one argument.
+
+  These come before the property members. A KDL property whose member name clashes with one of them wins, the same way a real `name` property wins over the `Name` alias.
 - A generated convenience member for each KDL property. These are a convenience only; exact values come from `NodeProperties`.
   - **Names:** KDL property names are converted to PascalCase, so `first-name`, `first_name` and `firstName` all become `FirstName`.
   - **Clashes:** when several KDL names convert to the same member name, a key that is already exactly that PascalCase name wins. Otherwise the first one in source order wins.
@@ -104,7 +115,7 @@ The spec allows two readings of an annotation on a node name: a suggested type f
 
 ### Types
 
-The output object's type is `KdlNode`, which a format file can target.
+The output object's type is `KdlNode`. Its default view is a table with these columns: `NodeName`, `Arguments`, `Properties` and `ChildNodes`. A fixed view can't add a column for each generated member, so `Properties` renders `NodeProperties` as `key=value` pairs instead.
 
 `RawNodeElements` holds `KdlElement` objects, with these members:
 
@@ -133,6 +144,7 @@ The output object's type is `KdlNode`, which a format file can target.
 - **Numbers above `decimal.MaxValue` (about 7.9e28) are a parse error** that fails the whole document. This covers integers and exponent forms alike (`1e29` up to `1e308`), and it also happens in the low-level `KdlReader`. So `u128`/`i128` values near the top of their range, and large `f64` values, can't be read through KdlSharp at all. Oddly, a magnitude beyond `double`'s range (`1e309`, `1e400`) doesn't fail; it saturates to `decimal.MaxValue` instead.
 - **Negative hex is broken.** `-0x10` parses with no value.
 - **Duplicate properties are kept** in `Properties`, in source order. `AllowDuplicateProperties` defaults to true. The parser defaults to KDL v2.
+- **Queries** (`KdlQuery.Compile`) handle child (`>`), descendant (`>>`), alternative (`||`), property and `val()` matchers. `top() > package` matched nothing against a document whose top-level node is `package`.
 - **`KdlReader`** is a flat token stream: strings, numbers, punctuation, slashdash and newlines. Its number `RawText` is the source text with underscores stripped, but it carries the same large-integer and negative-hex problems. Using it would mean building the node structure ourselves.
 
 ## Links
