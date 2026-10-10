@@ -1,0 +1,10 @@
+<Project>
+
+  <!--
+    Shared Sab39.* build settings live in Sab39.Core\Directory.Build.Common.props. This file is the
+    per-repo wrapper: add anything specific to this repo *after* the Import, where it overrides.
+  -->
+
+  <Import Project="$(MSBuildThisFileDirectory)..\Sab39.Core\Directory.Build.Common.props" />
+
+</Project>

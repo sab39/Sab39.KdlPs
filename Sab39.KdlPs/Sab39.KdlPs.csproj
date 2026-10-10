@@ -1,0 +1,40 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <!--
+      A class library doesn't normally copy its NuGet dependencies to its output, but a module folder
+      has to contain everything PowerShell will load from it.
+    -->
+    <CopyLocalLockFileAssemblies>true</CopyLocalLockFileAssemblies>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <!--
+      Compile-only: PowerShell itself supplies this assembly at runtime, so it must neither be copied
+      into the module folder nor flow on to anything referencing this project.
+    -->
+    <PackageReference Include="System.Management.Automation" Version="7.6.6" PrivateAssets="all" ExcludeAssets="runtime;native" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <None Include="Sab39.KdlPs.psd1" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+
+  <!--
+    Opt-in local deployment: copies the built module into $(KDLPSDeployPath)\Sab39.KdlPs, so setting
+    that variable to a PSModulePath folder makes 'Import-Module Sab39.KdlPs' pick up each build. Unset,
+    as it is for anyone who just clones the repo, nothing happens. A PowerShell session holding the
+    deployed DLL open makes the copy fail; that's a warning rather than an error, since the build
+    itself still succeeded.
+  -->
+  <Target Name="DeployModule" AfterTargets="Build" Condition="'$(KDLPSDeployPath)' != ''">
+    <ItemGroup>
+      <ModuleFile Include="$(OutDir)**\*" />
+    </ItemGroup>
+    <Copy SourceFiles="@(ModuleFile)" DestinationFolder="$(KDLPSDeployPath)\$(MSBuildProjectName)\%(RecursiveDir)" SkipUnchangedFiles="true" Retries="0" ContinueOnError="WarnAndContinue" />
+  </Target>
+
+</Project>
