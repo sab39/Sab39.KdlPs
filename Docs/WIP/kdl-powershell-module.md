@@ -59,7 +59,7 @@ Each node becomes an object with the members below. The fixed members are prefix
 - `RawNodeElements`: object forms of every element of the node, in source order. Each carries its type annotation, source position and so on.
   - `[0]` is the node name itself, so its annotation is captured too.
   - Arguments and properties follow, interleaved as written. Property entries carry their key, and overridden duplicates are kept.
-  - The interleaving is best effort, because of the keyword-position gap in KdlSharp (see the findings below). That gap is to be fixed in the KdlSharp patch or fork, along with the raw text. Tests for the correct behaviour already exist and are marked as expected failures.
+  - The interleaving is best effort, because of the keyword-position gap in KdlSharp (see KdlSharp below). That gap is to be fixed in the KdlSharp patch or fork, along with the raw text. Tests for the correct behaviour already exist and are marked as expected failures.
 - Generated convenience members for the arguments:
   - `Arg1`, `Arg2` and so on, one per argument.
   - `Argument` as well, when the node has exactly one argument.
@@ -100,7 +100,7 @@ The spec allows two readings of an annotation on a node name: a suggested type f
   | `base64`, `base85` | `byte[]` |
 
   No dedicated .NET type was found for `currency`, `country-3`, `country-subdivision`, `hostname`, `idn-hostname` or `url-template`.
-- **Numbers too large for KdlSharp** fail the whole parse (see the findings below). For now, that has to surface as a proper PowerShell error. It's another candidate for the KdlSharp patch or fork.
+- **Numbers too large for KdlSharp** fail the whole parse (see KdlSharp below). For now, that has to surface as a proper PowerShell error. It's another candidate for the KdlSharp patch or fork.
 - **Unmapped or unconvertible values.** For a first pass (which may be revisited), the rules are:
   - **Strings:** an unknown annotation, a numeric annotation, or a failed conversion leaves the value as a string and emits a warning.
   - **Numbers:** the same cases fall back to the unannotated number conversion, with a warning. Falling back to a string would mean exposing raw text.
@@ -126,26 +126,54 @@ The output object's type is `KdlNode`. Its default view is a table with these co
 - `Annotation`: the element's type annotation.
 - Possibly other members, if any turn out to be missing.
 
-`KdlElement` has no raw source text yet. That is not acceptable long term, but a member that is sometimes wrong is worse than none. KdlSharp gives only a start position for values, with nothing for keys, annotations or the end of a value (see the findings below). Working around that from outside the library is fragile. The plan is to fix KdlSharp itself later, by PR or by fork, and then add the raw text. The same fix should give `#true`, `#false` and `#null` source positions, so that `RawNodeElements` interleaving stops being best effort.
+`KdlElement` has no raw source text yet. That is not acceptable long term, but a member that is sometimes wrong is worse than none. KdlSharp gives only a start position for values, with nothing for keys, annotations or the end of a value (see KdlSharp below). Working around that from outside the library is fragile. The plan is to fix KdlSharp itself later, by PR or by fork, and then add the raw text. The same fix should give `#true`, `#false` and `#null` source positions, so that `RawNodeElements` interleaving stops being best effort.
 
-## KdlSharp findings (1.1.0)
+## KdlSharp (1.1.0)
 
-- KdlSharp never interprets type annotations. Nodes and values expose them only as `TypeAnnotation.TypeName`. Values are only `KdlString`, `KdlNumber`, `KdlBoolean` and `KdlNull`, so all type mapping is up to this module.
-- **Strings.** `KdlString.Value` is the decoded string, and `StringType` records whether it was bare, quoted, raw or multi-line.
-- **Numbers are lossy.** `KdlNumber.Value` is a `decimal`:
-  - Numbers too small for `decimal` underflow silently (`1e-30` becomes `0`). Numbers beyond `double`'s range saturate silently (`1e400` becomes `decimal.MaxValue`). Anything in between fails the parse; see below.
-  - Precision beyond about 28 digits is rounded.
-  - `KdlNumber.RawText` is set only for hex, octal and binary literals.
-  - `#inf`, `#-inf` and `#nan` show up through flags such as `IsPositiveInfinity`, not through `Value`.
-- **Raw number text is recoverable.** Every node and value has a populated `SourcePosition`. Its `Offset` is a UTF-16 offset into the source text, and for a property it points at the value, after any annotation. Slicing the source from that offset to the next delimiter gives the exact original text, underscores included.
-- **`#true`, `#false` and `#null` have no `SourcePosition`.** `#inf` and the other special numbers do. KdlSharp keeps arguments and properties in separate lists, so these keywords' place relative to the *other* list is unknowable. In `RawNodeElements`, each one takes the position of its predecessor in its own list. That keeps argument order and property order right, but can misplace a keyword relative to an element of the other kind.
-- **`SourcePosition` is start-only:** `Line`, `Column` and `Offset`. Nothing records where a value ends, and `KdlReader` exposes only its current position, not token boundaries.
-- **Offsets always point past the annotation**, for node names, arguments and property values alike. A property's key has no position at all. The annotation's source form is not recoverable from `TypeName`: `( u8 )` and `(u8)` both give `u8`, and an annotation can be a quoted string such as `("my type")`.
-- **Numbers above `decimal.MaxValue` (about 7.9e28) are a parse error** that fails the whole document. This covers integers and exponent forms alike (`1e29` up to `1e308`), and it also happens in the low-level `KdlReader`. So `u128`/`i128` values near the top of their range, and large `f64` values, can't be read through KdlSharp at all. Oddly, a magnitude beyond `double`'s range (`1e309`, `1e400`) doesn't fail; it saturates to `decimal.MaxValue` instead.
-- **Negative hex is broken.** `-0x10` parses with no value.
-- **Duplicate properties are kept** in `Properties`, in source order. `AllowDuplicateProperties` defaults to true. The parser defaults to KDL v2.
-- **Queries** (`KdlQuery.Compile`) handle child (`>`), descendant (`>>`), alternative (`||`), property and `val()` matchers. `top() > package` matched nothing against a document whose top-level node is `package`.
-- **`KdlReader`** is a flat token stream: strings, numbers, punctuation, slashdash and newlines. Its number `RawText` is the source text with underscores stripped, but it carries the same large-integer and negative-hex problems. Using it would mean building the node structure ourselves.
+Version 1.1.0 is the one tested. The plan is to fix the bugs and limitations below later, by PR or by fork. Everything listed was observed directly.
+
+### Bugs
+
+These are behaviours that are wrong by the spec, or silently wrong.
+
+1. **Numbers above `decimal.MaxValue` (about 7.9e28) fail the whole document**, if they are within `double`'s range. That covers integers and exponent forms alike, for example `340282366920938463463374607431768211456` and `1e29` up to `1e308`. Both the document API and `KdlReader` fail. So `u128`/`i128` values near the top of their range, and large `f64` values, can't be read through KdlSharp at all. In this module the failure surfaces as a parse error for the file.
+2. **Numbers beyond `double`'s range saturate silently.** `1e309` and `1e400` become `decimal.MaxValue` instead of failing.
+3. **Numbers too small for `decimal` underflow silently.** `1e-30` and `1e-400` become `0`.
+4. **Precision beyond about 28 significant digits is rounded silently** in `KdlNumber.Value`.
+5. **Negative hex has no value.** `-0x10` parses, but `KdlNumber.Value` is empty. In `KdlReader` its `RawText` is `0x-10`.
+6. **`#true`, `#false` and `#null` have no `SourcePosition`.** Every other value has one, including `#inf`, `#-inf` and `#nan`. Arguments and properties are kept in separate lists, so these keywords' place relative to the *other* list can't be recovered. This is why `RawNodeElements` interleaving is best effort, and three tests marked as expected failures cover it.
+7. **`top() > package` matched nothing** against a document whose only top-level node is `package`. This is probably a query bug, but the query spec's definition of `top()` hasn't been checked.
+
+### Limitations
+
+These are missing capabilities rather than wrong results.
+
+1. **`SourcePosition` records only the start** (`Line`, `Column`, `Offset`), with nothing for where an element ends. `KdlReader` exposes only its current position, not token boundaries. So exact source text can't be sliced out for strings, and this module has no raw-text member.
+2. **No positions for keys or annotations.** A value's offset points past its annotation, for node names, arguments and property values alike, and a property's key has no position at all.
+3. **An annotation's source form is lost.** `TypeName` is decoded, so `( u8 )` and `(u8)` both give `u8`, and a quoted annotation such as `("my type")` gives `my type`.
+4. **`KdlNumber.RawText` is set only for hex, octal and binary literals.**
+5. **`KdlReader`'s number `RawText` isn't raw:** underscores are stripped (`1_000` gives `1000`). Its string tokens don't record bare, quoted or raw form.
+
+### Behaviour this module relies on
+
+- Type annotations are never interpreted. Nodes and values expose them only as `TypeAnnotation.TypeName`. Values are only `KdlString`, `KdlNumber`, `KdlBoolean` and `KdlNull`, so all type mapping is up to this module.
+- `KdlString.Value` is the decoded string, and `StringType` records bare, quoted, raw or multi-line.
+- `#inf`, `#-inf` and `#nan` show up through flags such as `IsPositiveInfinity`, not through `Value`.
+- `SourcePosition.Offset` is a UTF-16 offset into the source text. Reading a number from it up to the next delimiter gives the exact original text, underscores included. That's how this module gets correct number values despite bugs 2 to 5 above.
+- Duplicate properties are kept in `Properties`, in source order. `AllowDuplicateProperties` defaults to true, and the parser defaults to KDL v2.
+- Queries (`KdlQuery.Compile`) handle child (`>`), descendant (`>>`), alternative (`||`), property and `val()` matchers, and `[]` for any node.
+
+### Contributing
+
+KdlSharp has no `CONTRIBUTING.md`. The README points to `AGENTS.md`, which it calls the development and contributing guide, and that file is addressed to AI agents as much as to people. It requires:
+
+- builds with warnings as errors and full analyzers, and `dotnet format --verify-no-changes` passing
+- XML docs on all public APIs
+- no dependencies in the core library, which stays on .NET Standard 2.1
+- exact compliance with the KDL v2 spec, including passing the official test suite (a git submodule)
+- tests for edge cases the official suite doesn't cover
+
+`AGENTS.md` says every official test passes, so the bugs above are presumably outside that suite. Neither the repo nor Anthropic's consumer terms restrict contributing AI-assisted code to it.
 
 ## Links
 
