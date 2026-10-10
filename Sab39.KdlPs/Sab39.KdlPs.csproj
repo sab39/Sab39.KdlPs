@@ -16,8 +16,12 @@
       Compile-only: PowerShell itself supplies this assembly at runtime, so it must neither be copied
       into the module folder nor flow on to anything referencing this project.
     -->
-    <PackageReference Include="KdlSharp" Version="1.1.0" />
     <PackageReference Include="System.Management.Automation" Version="7.6.6" PrivateAssets="all" ExcludeAssets="runtime;native" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- The local fork, in place of the KdlSharp 1.1.0 package, for as long as this branch lives. -->
+    <ProjectReference Include="..\..\KdlSharp\KdlSharp\KdlSharp.csproj" />
   </ItemGroup>
 
   <ItemGroup>
