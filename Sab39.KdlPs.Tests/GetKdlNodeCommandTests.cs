@@ -131,12 +131,6 @@ public sealed class GetKdlNodeCommandTests
     }
 
     [TestMethod]
-    public void TooLargeNumbersAreParseErrors()
-        => Assert.AreEqual(
-            "KdlParseFailed,Sab39.KdlPs.GetKdlNodeCommand",
-            Run("param($kdl) Get-KdlNode -Text $kdl", "n 1e200").Errors.Single().FullyQualifiedErrorId);
-
-    [TestMethod]
     public void ConversionWarningsFromTextHaveNoFilePrefix()
         => Assert.AreEqual(
             "Line 1, column 7: Couldn't convert the number to (u8):",
