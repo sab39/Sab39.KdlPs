@@ -15,7 +15,8 @@ namespace Sab39.KdlPs;
 /// </summary>
 internal static class KdlSharpConverter
 {
-    public static KdlSharpNode ToKdlSharp(KdlNode node)
+    /// <summary>Normalize sorts properties by key, ordinally, as the official test suite's expected files do.</summary>
+    public static KdlSharpNode ToKdlSharp(KdlNode node, bool normalize)
     {
         CheckName(node.NodeName, "node name");
         var annotation = node.RawNodeElements.FirstOrDefault(e => e.Kind == KdlElementKind.NodeName)?.Annotation;
@@ -23,13 +24,14 @@ internal static class KdlSharpConverter
 
         foreach (var argument in node.NodeArguments) result.AddArgument(ToKdlValue(argument));
 
-        foreach (var (key, value) in node.NodeProperties)
+        var properties = normalize ? node.NodeProperties.OrderBy(p => p.Key, StringComparer.Ordinal) : node.NodeProperties.AsEnumerable();
+        foreach (var (key, value) in properties)
         {
             CheckName(key, "property key");
             result.AddProperty(key, ToKdlValue(value));
         }
 
-        foreach (var child in node.ChildNodes) result.AddChild(ToKdlSharp(child));
+        foreach (var child in node.ChildNodes) result.AddChild(ToKdlSharp(child, normalize));
 
         return result;
     }

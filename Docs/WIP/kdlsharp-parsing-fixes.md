@@ -39,7 +39,7 @@ Once upstream releases the fixes, the module goes back to a `PackageReference` a
 
 ## Next: bringing in the official test suite
 
-Once `Write-KdlNode` and the official test suite tests are in on `main` (see "Testing" in [kdl-powershell-module.md](kdl-powershell-module.md)), `main` is merged into this branch, and the branch's `specs` submodule is repointed to sab39/kdl at the same commit KdlSharp's branch uses. That runs the module's tests against the new test cases too. The branch is then pushed, so others can run them.
+`Write-KdlNode` and the official test suite tests are now in on `main` (see "Testing" in [kdl-powershell-module.md](kdl-powershell-module.md)). Next, `main` is merged into this branch, and the branch's `specs` submodule is repointed to sab39/kdl at the same commit KdlSharp's branch uses. That runs the module's tests against the new test cases too. The branch is then pushed, so others can run them.
 
 ## Open: KDL Query Language spec wording
 

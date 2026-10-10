@@ -20,11 +20,33 @@ public sealed class WriteKdlNodeCommandTests
     public void PipedNodesBecomeOneDocument() => Assert.AreEqual("a\nb", Written("Get-KdlNode -Text 'a; b'"));
 
     [TestMethod]
-    public void NoInputGivesNoOutput() => Assert.IsEmpty(Run("@() | Write-KdlNode").Output);
+    public void NoInputGivesAnEmptyDocument() => Assert.AreEqual("", Run("@() | Write-KdlNode").Output.Single().BaseObject);
 
     [TestMethod]
     public void PropertiesFollowArgumentsInDictionaryOrder()
         => Assert.AreEqual("n 1 b=2 a=x", Written("New-KdlNode n 1 -NodeProperties ([ordered]@{ b = 2; a = 'x' })"));
+
+    [TestMethod]
+    public void NormalizeSortsProperties()
+        => Assert.AreEqual(
+            "p a=2 b=3 {\n    c x=1 y=2\n}",
+            Written("New-KdlNode p -NodeProperties ([ordered]@{ b = 3; a = 2 }) -ChildNodes (New-KdlNode c -NodeProperties ([ordered]@{ y = 2; x = 1 }))", normalize: true));
+
+    // PowerShell's own dictionaries ignore case, so a generic one is needed to have keys that differ
+    // only by it.
+    [TestMethod]
+    public void NormalizeSortsPropertiesOrdinally()
+        => Assert.AreEqual(
+            "p B=y a=x b=z",
+            Written(
+                """
+                $properties = [System.Collections.Generic.Dictionary[string, string]]::new()
+                $properties['b'] = 'z'
+                $properties['B'] = 'y'
+                $properties['a'] = 'x'
+                New-KdlNode p -NodeProperties $properties
+                """,
+                normalize: true));
 
     [TestMethod]
     public void ChildrenAreIndentedInABlock()
@@ -120,8 +142,8 @@ public sealed class WriteKdlNodeCommandTests
     /// Pipes the nodes a script outputs to Write-KdlNode. A terminating error comes back as the output
     /// instead, so that a test expecting text fails on an assertion that shows the error.
     /// </summary>
-    private static string Written(string nodes, object? argument = null)
-        => (string)Run($$"""param($arg) try { {{nodes}} | Write-KdlNode } catch { "Error: $_" }""", argument).Output.Single().BaseObject;
+    private static string Written(string nodes, object? argument = null, bool normalize = false)
+        => (string)Run($$"""param($arg) try { {{nodes}} | Write-KdlNode{{(normalize ? " -Normalize" : "")}} } catch { "Error: $_" }""", argument).Output.Single().BaseObject;
 
     /// <summary>The text of the one argument of the one node a script outputs.</summary>
     private static string WrittenArgument(string nodes)

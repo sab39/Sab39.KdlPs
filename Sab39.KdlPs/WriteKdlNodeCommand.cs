@@ -22,13 +22,17 @@ public sealed class WriteKdlNodeCommand : PSCmdlet
     [Parameter(Mandatory = true, Position = 0, ValueFromPipeline = true)]
     public KdlNode[] InputObject { get; set; } = [];
 
+    /// <summary>Writes the normalized form the official test suite's expected files use. So far, that only sorts properties.</summary>
+    [Parameter]
+    public SwitchParameter Normalize { get; set; }
+
     protected override void ProcessRecord()
     {
         foreach (var node in InputObject)
         {
             try
             {
-                this.document.Nodes.Add(KdlSharpConverter.ToKdlSharp(node));
+                this.document.Nodes.Add(KdlSharpConverter.ToKdlSharp(node, Normalize));
             }
             catch (NotSupportedException e)
             {
@@ -37,10 +41,6 @@ public sealed class WriteKdlNodeCommand : PSCmdlet
         }
     }
 
-    protected override void EndProcessing()
-    {
-        if (this.document.Nodes.Count == 0) return;
-
-        WriteObject(this.document.ToKdlString(settings).TrimEnd('\n'));
-    }
+    /// <summary>With no nodes, that's an empty string: an empty document is still a document.</summary>
+    protected override void EndProcessing() => WriteObject(this.document.ToKdlString(settings).TrimEnd('\n'));
 }
