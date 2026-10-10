@@ -1,13 +1,11 @@
 using System.Management.Automation;
-using System.Management.Automation.Runspaces;
 using System.Net.Mail;
+
+using static Sab39.KdlPs.Tests.ModuleShell;
 
 namespace Sab39.KdlPs.Tests;
 
-/// <summary>
-/// Runs Get-KdlNode in an in-process PowerShell, with the cmdlet and format file registered directly
-/// rather than through the module manifest.
-/// </summary>
+/// <summary>Runs Get-KdlNode in an in-process PowerShell.</summary>
 [TestClass]
 public sealed class GetKdlNodeCommandTests
 {
@@ -218,38 +216,6 @@ public sealed class GetKdlNodeCommandTests
         StringAssert.Contains(lines[2], "a=2 b=#null");
         StringAssert.Contains(lines[2], "c, d");
     }
-
-    // The format file ships next to the module's own assembly, wherever the test runner has put it.
-    private static readonly string formatFile = System.IO.Path.Combine(
-        System.IO.Path.GetDirectoryName(typeof(GetKdlNodeCommand).Assembly.Location)!,
-        "Sab39.KdlPs.format.ps1xml");
-
-    private sealed record Result(PSObject[] Output, string[] Warnings, ErrorRecord[] Errors);
-
-    /// <summary>Runs a script taking one parameter, and collects its output, warnings and errors.</summary>
-    private static Result Run(string script, string argument)
-    {
-        var state = InitialSessionState.CreateDefault();
-
-        // Execution policy applies to format files too, and a hosted PowerShell with no config of its
-        // own defaults to Restricted, which silently skips loading them. Setting ExecutionPolicy here
-        // comes too late to help, so the policy-enforcing authorization manager is swapped for the
-        // base one, which allows everything. (A shell started with -ExecutionPolicy Bypass hides all
-        // this, by passing its policy on to the test process through the environment.)
-        state.AuthorizationManager = new AuthorizationManager("Sab39.KdlPs.Tests");
-        state.Commands.Add(new SessionStateCmdletEntry("Get-KdlNode", typeof(GetKdlNodeCommand), null));
-        state.Formats.Add(new SessionStateFormatEntry(formatFile));
-
-        using var shell = PowerShell.Create(state);
-        shell.AddScript(script).AddArgument(argument);
-        var output = shell.Invoke();
-
-        return new([.. output], [.. shell.Streams.Warning.Select(w => w.Message)], [.. shell.Streams.Error]);
-    }
-
-    private static object? Member(PSObject node, string name) => node.Properties[name]?.Value;
-
-    private static string[] NodeNames(IEnumerable<PSObject> nodes) => [.. nodes.Select(n => (string)Member(n, "NodeName")!)];
 
     /// <summary>A folder of test files, deleted on dispose.</summary>
     private sealed class TempFolder : IDisposable

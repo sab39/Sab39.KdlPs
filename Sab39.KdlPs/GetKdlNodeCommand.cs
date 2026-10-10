@@ -142,7 +142,7 @@ public sealed class GetKdlNodeCommand : PSCmdlet
     /// Adds the generated property members to a node and its descendants. PowerShell keeps members
     /// added this way with the node itself, so they're still there when it's reached via ChildNodes.
     /// </summary>
-    private static PSObject AttachMembers(KdlNode node)
+    internal static PSObject AttachMembers(KdlNode node)
     {
         var wrapper = PSObject.AsPSObject(node);
         foreach (var (name, value) in node.ConvenienceMembers)
