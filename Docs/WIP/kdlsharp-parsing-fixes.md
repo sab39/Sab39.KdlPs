@@ -37,6 +37,10 @@ git clone --recurse-submodules --branch kdlsharp-parsing-fixes https://github.co
 
 Once upstream releases the fixes, the module goes back to a `PackageReference` at the new version, and the branch's reference and solution changes are dropped.
 
+## Next: bringing in the official test suite
+
+Once `Write-KdlNode` and the official test suite tests are in on `main` (see "Testing" in [kdl-powershell-module.md](kdl-powershell-module.md)), `main` is merged into this branch, and the branch's `specs` submodule is repointed to sab39/kdl at the same commit KdlSharp's branch uses. That runs the module's tests against the new test cases too. The branch is then pushed, so others can run them.
+
 ## Open: KDL Query Language spec wording
 
 Candidates for wording suggestions to kdl-org/kdl, alongside the test-suite additions. `QUERY-SPEC.md` at kdl-org/kdl commit `89c1087`:
