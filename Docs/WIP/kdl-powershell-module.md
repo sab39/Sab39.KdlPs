@@ -128,6 +128,13 @@ The output object's type is `KdlNode`. Its default view is a table with these co
 
 `KdlElement` has no raw source text yet. That is not acceptable long term, but a member that is sometimes wrong is worse than none. KdlSharp gives only a start position for values, with nothing for keys, annotations or the end of a value (see KdlSharp below). Working around that from outside the library is fragile. The plan is to fix KdlSharp itself later, by PR or by fork, and then add the raw text. The same fix should give `#true`, `#false` and `#null` source positions, so that `RawNodeElements` interleaving stops being best effort.
 
+## Testing
+
+- Unit tests use MSTest on Microsoft.Testing.Platform. `global.json` makes `dotnet test` use that runner.
+- The cmdlet tests (`GetKdlNodeCommandTests`) run `Get-KdlNode` in an in-process PowerShell from `Microsoft.PowerShell.SDK`. The test project references the SDK; the module doesn't.
+- **Execution policy in the hosted PowerShell.** The hosted PowerShell's `$PSHOME` is the test output's `runtimes\win\lib\net10.0` folder, which has no `powershell.config.json`. So it never sees the machine's real policy, all scopes are `Undefined`, and the Windows default of `Restricted` applies. `Restricted` silently skips loading `.ps1xml` format files. Setting `InitialSessionState.ExecutionPolicy` comes too late to prevent that, so the test sessions use the base `AuthorizationManager`, which allows everything.
+- **Agent shells hide execution-policy problems.** Commands run by Claude Code here inherit `PSExecutionPolicyPreference=Bypass`, which every child process, including test runs, picks up. A test that depends on execution policy can pass under an agent and fail in Visual Studio. To reproduce Visual Studio's conditions, clear that variable before running the tests.
+
 ## KdlSharp (1.1.0)
 
 Version 1.1.0 is the one tested. The plan is to fix the bugs and limitations below later, by PR or by fork. Everything listed was observed directly.

@@ -202,14 +202,27 @@ public sealed class GetKdlNodeCommandTests
     [TestMethod]
     public void DefaultViewIsATableOfNameArgumentsPropertiesAndChildren()
     {
-        var text = string.Concat(Run("param($kdl) Get-KdlNode -Text $kdl | Out-String -Width 200", "n 1 \"s\" #null a=2 b=#null { c; d; }").Output);
+        // Whether headers get ANSI emphasis depends on the environment the tests run in, so it's
+        // turned off to compare plain text.
+        var result = Run(
+            "param($kdl) $PSStyle.OutputRendering = 'PlainText'; Get-KdlNode -Text $kdl | Out-String -Width 200",
+            "n 1 \"s\" #null a=2 b=#null { c; d; }");
+        var text = string.Concat(result.Output);
         var lines = text.Split('\n', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
 
-        CollectionAssert.AreEqual(new[] { "NodeName", "Arguments", "Properties", "ChildNodes" }, lines[0].Split(' ', StringSplitOptions.RemoveEmptyEntries));
+        CollectionAssert.AreEqual(
+            new[] { "NodeName", "Arguments", "Properties", "ChildNodes" },
+            lines[0].Split(' ', StringSplitOptions.RemoveEmptyEntries),
+            $"Formatted output was:\n{text}");
         StringAssert.Contains(lines[2], "1 s #null");
         StringAssert.Contains(lines[2], "a=2 b=#null");
         StringAssert.Contains(lines[2], "c, d");
     }
+
+    // The format file ships next to the module's own assembly, wherever the test runner has put it.
+    private static readonly string formatFile = System.IO.Path.Combine(
+        System.IO.Path.GetDirectoryName(typeof(GetKdlNodeCommand).Assembly.Location)!,
+        "Sab39.KdlPs.format.ps1xml");
 
     private sealed record Result(PSObject[] Output, string[] Warnings, ErrorRecord[] Errors);
 
@@ -217,8 +230,15 @@ public sealed class GetKdlNodeCommandTests
     private static Result Run(string script, string argument)
     {
         var state = InitialSessionState.CreateDefault();
+
+        // Execution policy applies to format files too, and a hosted PowerShell with no config of its
+        // own defaults to Restricted, which silently skips loading them. Setting ExecutionPolicy here
+        // comes too late to help, so the policy-enforcing authorization manager is swapped for the
+        // base one, which allows everything. (A shell started with -ExecutionPolicy Bypass hides all
+        // this, by passing its policy on to the test process through the environment.)
+        state.AuthorizationManager = new AuthorizationManager("Sab39.KdlPs.Tests");
         state.Commands.Add(new SessionStateCmdletEntry("Get-KdlNode", typeof(GetKdlNodeCommand), null));
-        state.Formats.Add(new SessionStateFormatEntry(System.IO.Path.Combine(AppContext.BaseDirectory, "Sab39.KdlPs.format.ps1xml")));
+        state.Formats.Add(new SessionStateFormatEntry(formatFile));
 
         using var shell = PowerShell.Create(state);
         shell.AddScript(script).AddArgument(argument);
