@@ -73,36 +73,31 @@ public sealed class KdlNodeBuilderTests
 
     [TestMethod]
     public void KeywordArgumentsInterleaveWithPropertiesInSourceOrder()
-        => ExpectedFailure.Run(KeywordPositionsMissing, () =>
-        {
-            var (node, _) = Build("n 1 a=2 #true");
+    {
+        var (node, _) = Build("n 1 a=2 #true");
 
-            CollectionAssert.AreEqual(
-                new[] { KdlElementKind.NodeName, KdlElementKind.Argument, KdlElementKind.Property, KdlElementKind.Argument },
-                node.RawNodeElements.Select(e => e.Kind).ToArray());
-        });
+        CollectionAssert.AreEqual(
+            new[] { KdlElementKind.NodeName, KdlElementKind.Argument, KdlElementKind.Property, KdlElementKind.Argument },
+            node.RawNodeElements.Select(e => e.Kind).ToArray());
+    }
 
     [TestMethod]
     public void KeywordPropertiesInterleaveWithArgumentsInSourceOrder()
-        => ExpectedFailure.Run(KeywordPositionsMissing, () =>
-        {
-            var (node, _) = Build("n 1 a=#null");
+    {
+        var (node, _) = Build("n 1 a=#null");
 
-            CollectionAssert.AreEqual(
-                new[] { KdlElementKind.NodeName, KdlElementKind.Argument, KdlElementKind.Property },
-                node.RawNodeElements.Select(e => e.Kind).ToArray());
-        });
+        CollectionAssert.AreEqual(
+            new[] { KdlElementKind.NodeName, KdlElementKind.Argument, KdlElementKind.Property },
+            node.RawNodeElements.Select(e => e.Kind).ToArray());
+    }
 
     [TestMethod]
     public void KeywordValuesHaveSourcePositions()
-        => ExpectedFailure.Run(KeywordPositionsMissing, () =>
-        {
-            var (node, _) = Build("n #true a=#false #null");
+    {
+        var (node, _) = Build("n #true a=#false #null");
 
-            CollectionAssert.AreEqual(new int?[] { 0, 2, 10, 17 }, node.RawNodeElements.Select(e => e.SourcePosition?.Offset).ToArray());
-        });
-
-    private const string KeywordPositionsMissing = "KdlSharp gives #true, #false and #null no source position";
+        CollectionAssert.AreEqual(new int?[] { 0, 2, 10, 17 }, node.RawNodeElements.Select(e => e.SourcePosition?.Offset).ToArray());
+    }
 
     [TestMethod]
     public void RawElementsCarryAnnotationsAndPositions()
