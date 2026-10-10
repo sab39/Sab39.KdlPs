@@ -122,7 +122,7 @@ The output object's type is `KdlNode`. Its default view is a table with these co
 - `Kind`: an enum with the values `NodeName`, `Argument` and `Property`.
 - `Key`: the property key. `null` for anything that isn't a property.
 - `Value`: the converted value.
-- `SourcePosition`: KdlSharp's own type. It points at the start of the value, after any key or annotation. It is null for `#true`, `#false` and `#null`, because KdlSharp gives those no position.
+- `SourcePosition`: KdlSharp's own type. It points at the start of the value, after any key or annotation. It is null for unannotated `#true`, `#false` and `#null`, because KdlSharp gives those no position.
 - `Annotation`: the element's type annotation.
 - Possibly other members, if any turn out to be missing.
 
@@ -140,8 +140,8 @@ These are behaviours that are wrong by the spec, or silently wrong.
 2. **Numbers beyond `double`'s range saturate silently.** `1e309` and `1e400` become `decimal.MaxValue` instead of failing.
 3. **Numbers too small for `decimal` underflow silently.** `1e-30` and `1e-400` become `0`.
 4. **Precision beyond about 28 significant digits is rounded silently** in `KdlNumber.Value`.
-5. **Negative hex has no value.** `-0x10` parses, but `KdlNumber.Value` is empty. In `KdlReader` its `RawText` is `0x-10`.
-6. **`#true`, `#false` and `#null` have no `SourcePosition`.** Every other value has one, including `#inf`, `#-inf` and `#nan`. Arguments and properties are kept in separate lists, so these keywords' place relative to the *other* list can't be recovered. This is why `RawNodeElements` interleaving is best effort, and three tests marked as expected failures cover it.
+5. **Negative hex, octal and binary have wrong values.** `-0x10` parses, but reading its value (`KdlNumber.Value`, or `KdlReader.NumberValue`) throws `FormatException`. Negative octal and binary are silently wrong: `-0o20` gives -176, and `-0b10000` gives -80. The `RawText` of all three puts the sign after the prefix, for example `0x-10`.
+6. **Unannotated `#true`, `#false` and `#null` have no `SourcePosition`.** With a type annotation, such as `(tag)#true`, they do have one. Every other value has one, including `#inf`, `#-inf` and `#nan`. Arguments and properties are kept in separate lists, so these keywords' place relative to the *other* list can't be recovered. This is why `RawNodeElements` interleaving is best effort, and three tests marked as expected failures cover it.
 7. **`top() > package` matched nothing** against a document whose only top-level node is `package`. This is probably a query bug, but the query spec's definition of `top()` hasn't been checked.
 
 ### Limitations
