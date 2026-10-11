@@ -37,13 +37,39 @@ internal static class KdlSharpConverter
     }
 
     /// <summary>The annotation a value is written with, or null for none.</summary>
-    public static string? GetAnnotation(object? value) => ToAnnotatedText(value)?.Annotation;
+    public static string? GetAnnotation(object? value) => GetIntegerAnnotation(value) ?? ToAnnotatedText(value)?.Annotation;
 
     private static KdlValue ToKdlValue(object? value)
+    {
+        var result = ToKdlValueWithoutIntegerAnnotation(value);
+        if (GetIntegerAnnotation(value) is { } annotation) result.TypeAnnotation = new KdlAnnotation(annotation);
+        return result;
+    }
+
+    /// <summary>
+    /// Integer types smaller than int, and unsigned ones, are annotated: a byte was probably meant as one.
+    /// The larger signed types are read back by magnitude.
+    /// </summary>
+    private static string? GetIntegerAnnotation(object? value)
+        => value switch
+        {
+            PSObject wrapped => GetIntegerAnnotation(wrapped.BaseObject),
+            sbyte => "i8",
+            short => "i16",
+            byte => "u8",
+            ushort => "u16",
+            uint => "u32",
+            ulong => "u64",
+            nuint => "usize",
+            UInt128 => "u128",
+            _ => null,
+        };
+
+    private static KdlValue ToKdlValueWithoutIntegerAnnotation(object? value)
         => value switch
         {
             null => KdlNull.Instance,
-            PSObject wrapped => ToKdlValue(wrapped.BaseObject),
+            PSObject wrapped => ToKdlValueWithoutIntegerAnnotation(wrapped.BaseObject),
             bool b => b ? KdlBoolean.True : KdlBoolean.False,
             string s => new KdlString(s),
 

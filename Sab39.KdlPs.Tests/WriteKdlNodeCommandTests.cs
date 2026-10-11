@@ -174,6 +174,14 @@ public sealed class WriteKdlNodeCommandTests
     [DataRow("[uri]::new('docs/page', [UriKind]::Relative)", "(url-reference)\"docs/page\"")]
     [DataRow("[regex]'a+b'", "(regex)a+b")]
     [DataRow("[byte[]](1, 2, 3)", "(base64)AQID")]
+    [DataRow("[sbyte]-5", "(i8)-5")]
+    [DataRow("[int16]-300", "(i16)-300")]
+    [DataRow("[byte]5", "(u8)5")]
+    [DataRow("[uint16]::MaxValue", "(u16)65535")]
+    [DataRow("[uint32]::MaxValue", "(u32)4294967295")]
+    [DataRow("[uint64]::MaxValue", "(u64)18446744073709551615")]
+    [DataRow("[UIntPtr]::new(7)", "(usize)7")]
+    [DataRow("[UInt128]::MaxValue", "(u128)340282366920938463463374607431768211455")]
     public void AnnotatedTypesRoundTrip(string expression, string expected)
     {
         var result = Run(
@@ -191,6 +199,10 @@ public sealed class WriteKdlNodeCommandTests
         Assert.AreEqual($"n v={expected}", result.Output[0].BaseObject);
         AssertSameValue(result.Output[2].BaseObject, result.Output[1].BaseObject);
     }
+
+    // Read back by magnitude, like any unannotated integer
+    [TestMethod]
+    public void LargerSignedIntegersAreUnannotated() => Assert.AreEqual("n 5 5 5 5", Written("New-KdlNode n 5 ([long]5) ([IntPtr]5) ([Int128]5)"));
 
     [TestMethod]
     public void DateTimeIsWrittenAsDateTimeOffset()
