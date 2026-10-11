@@ -46,10 +46,7 @@ The module's code on that branch is written as if every KdlSharp bug and limitat
 - `Get-KdlNode` parses with `KdlParserSettings.PreserveSourceText`, and converts each number from `KdlNumber.RawText` rather than re-reading it from the source text at its offset.
 - `RawNodeElements` is ordered by each value's own `SourcePosition`, so its interleaving is exact rather than best effort.
 - `Write-KdlNode` uses KdlSharp's default formatter settings and passes strings as plain `KdlString`s, so it relies on KdlSharp to write strings bare wherever that's valid (bug 8) and to quote number-like strings, names and keys (bug 9). Number-like names and keys aren't a `KdlWriteNotSupported` error there.
-
-### Open: numbers outside `decimal`'s range on that branch
-
-`Write-KdlNode` on that branch still has `main`'s workaround for limitation 6: integers and doubles outside `decimal`'s range are a `KdlWriteNotSupported` error, and whole-number doubles are written via a `decimal` with a scale of one. KdlSharp has no way yet to construct a `KdlNumber` for those values, so there's no fixed API for the module to be written against.
+- `Write-KdlNode` constructs each `KdlNumber` directly from the .NET numeric type it has, and KdlSharp writes it in canonical form. Numbers outside `decimal`'s range aren't a `KdlWriteNotSupported` error there, and whole-number doubles get their `.0` from KdlSharp.
 
 ## Source text on the KdlSharp branch
 
