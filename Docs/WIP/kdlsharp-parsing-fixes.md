@@ -14,7 +14,7 @@ On the KdlSharp branch, commits that only change the `specs` submodule (its poin
 
 ## Setup
 
-The module's branch expects a KdlSharp clone next to it, the same way it already expects `Sab39.Core`:
+This module's `kdlsharp-parsing-fixes` branch expects a KdlSharp clone next to it, the same way it already expects `Sab39.Core`:
 
 ```
 C:\Code\
@@ -29,13 +29,13 @@ Clone KdlSharp with its submodule, so that the official test suite is present:
 git clone --recurse-submodules --branch kdlsharp-parsing-fixes https://github.com/sab39/KdlSharp
 ```
 
-## How this module's branch references KdlSharp
+## How the module's `kdlsharp-parsing-fixes` branch references KdlSharp
 
 - `Sab39.KdlPs.csproj` has a `ProjectReference` to `..\..\KdlSharp\KdlSharp\KdlSharp.csproj` in place of `PackageReference Include="KdlSharp" Version="1.1.0"`. Building the module builds KdlSharp from source, with KdlSharp's own build settings.
 - `Sab39.KdlPs.slnx` has a `/KdlSharp/` solution folder with all four projects from KdlSharp's own solution: `KdlSharp`, `KdlSharp.Tests`, `KdlSharp.Benchmarks` and `KdlSharp.Demo`. Having KdlSharp in the solution also makes Visual Studio's fast up-to-date check notice edits to KdlSharp source.
 - `KdlSharp.Tests` is xUnit v2 on VSTest, which can't run in Microsoft.Testing.Platform mode, so `dotnet test` can't use MTP for the whole solution. The branch therefore has no `global.json`, which puts `dotnet test` in VSTest mode. MTP refuses to run under VSTest on the .NET 10 SDK, so `Directory.Build.rsp` passes `-p:EnableMSTestRunner=false` to every command-line MSBuild run, and this module's tests run through MSTest's VSTest adapter instead. Visual Studio ignores `.rsp` files and runs both test projects together without this.
-- This module's own `specs` submodule points at sab39/kdl, at the same commit KdlSharp's branch uses, so the module's official test suite tests run the new test cases too.
-- No test is marked as an expected failure on this branch. Everything the work here is meant to make pass fails until it does.
+- The module's own `specs` submodule points at sab39/kdl, at the same commit KdlSharp's branch uses, so the module's official test suite tests run the new test cases too.
+- No test is marked as an expected failure on that branch. Everything the work there is meant to make pass fails until it does.
 
 Once upstream releases the fixes, the module goes back to a `PackageReference` at the new version, and the branch's reference and solution changes are dropped.
 
@@ -57,7 +57,7 @@ The suggestion is to define printing rules that correctly describe what the file
 
 ## Open: `KdlReader.ReadValue()`
 
-Out of scope for now, and untested by the branch. The values `ReadValue()` returns don't match what `KdlParser` produces for the same source, and contradict `KdlValue.SourcePosition`'s doc comment ("null if constructed programmatically"):
+Out of scope for now, and untested by the `kdlsharp-parsing-fixes` branches. The values `ReadValue()` returns don't match what `KdlParser` produces for the same source, and contradict `KdlValue.SourcePosition`'s doc comment ("null if constructed programmatically"):
 
 - No value it returns has a `SourcePosition`. That covers every kind of value, not only `#true`, `#false` and `#null`, which it returns as the shared singletons.
 - Strings always have the default `StringType`, whatever their source form.

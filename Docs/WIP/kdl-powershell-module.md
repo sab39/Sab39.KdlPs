@@ -152,7 +152,8 @@ Creates a node of the same type `Get-KdlNode` outputs, with the same generated m
   - numbers outside `decimal`'s range (limitation 6)
   - node names and property keys that look like numbers (bug 9).
 
-  Bugs 10 and 11 are the exception: they write wrong numbers without an error.
+  Bug 10 and the whole-number `double` gap below are the exception: they write wrong numbers without an error.
+- **A whole-number `double` is written as an integer.** `[double]1` is written as `1`, which reads back as an `int`. Decimals keep their scale, so `1.0m` is written as `1.0`. PowerShell's `[decimal]'1.0'` cast gives `1` with scale 0, so it gets written as `1`. That's PowerShell's conversion, not the writer.
 
 ## Testing
 
@@ -185,10 +186,10 @@ These are behaviours that are wrong by the spec, or silently wrong.
 8. **`PreferIdentifierStrings` has no effect.** The formatter writes strings bare only when `PreserveStringTypes` is on and the string's `StringType` is `Identifier`.
 9. **The formatter's identifier check lets number-like strings through.** With the settings above, `1x`, `-1`, `+1`, `.5` and `-.5` are all written bare, so they read back as numbers or fail to parse. Node names and property keys are written bare the same way, and since they aren't `KdlString`s, no string type can make them quoted.
 10. **Numbers from 1e10 up, or below 1e-4, are written in E notation with only 7 significant digits.** For example, `long.MaxValue` gives `9.223372E+018`, and `0.000012345` gives `1.234500E-005`.
-11. **A zero fraction is dropped.** `1.0m` is written as `1`, which reads back as an integer.
+11. (This turned out not to be a KdlSharp bug.)
 12. **Annotations that need quoting are written bare.** An empty annotation is written as `()`, and `"type/"` as `(type/)`.
-13. **KdlSharp's tests don't cover its formatter's output.** The official test suite tests parsing, and `OfficialTestRunner` uses it that way, comparing parsed structures. That fits the suite's stated purpose, but nothing else in KdlSharp checks what the formatter writes. That's how bugs 8 to 12 and 14 get past a suite that `AGENTS.md` says passes in full. On the fixes branch, `OfficialTestRunner` has a round-trip test (write, parse again, compare), which catches the ones that don't parse back to the same values.
-14. **The default formatter escapes characters outside the BMP as surrogate pairs.** 😀 is written as `"\u{D83D}\u{DE00}"`, which is invalid, because `\u{}` escapes must be Unicode scalar values. KdlSharp's own parser rejects it. `Write-KdlNode` doesn't hit this, because it writes such strings bare.
+13. **KdlSharp's tests don't cover its formatter's output.** The official test suite tests parsing, and `OfficialTestRunner` uses it that way, comparing parsed structures. That fits the suite's stated purpose, but nothing else in KdlSharp checks what the formatter writes. That's how bugs 8 to 10, 12 and 14 get past a suite that `AGENTS.md` says passes in full. On the fixes branch, `OfficialTestRunner` has a round-trip test (write, parse again, compare), which catches the ones that don't parse back to the same values.
+14. **The default formatter escapes characters outside the BMP as surrogate pairs.** 😀 is written as `"\u{D83D}\u{DE00}"`, which is invalid, because `\u{}` escapes must be Unicode scalar values. KdlSharp's own parser rejects it. `Write-KdlNode` hits this only for strings that have to be quoted, such as `"a 😀"`, since it writes every other string bare.
 
 ### Limitations
 

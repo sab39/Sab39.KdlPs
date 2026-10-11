@@ -112,10 +112,10 @@ public sealed class WriteKdlNodeCommandTests
             decimal.Parse(value, CultureInfo.InvariantCulture),
             decimal.Parse(WrittenArgument($"New-KdlNode n ([decimal]'{value}')"), NumberStyles.Float, CultureInfo.InvariantCulture));
 
-    // Written without a fraction or exponent, it would read back as an integer.
+    // Parsed rather than cast, since PowerShell's [decimal]'1.0' drops the scale.
     [TestMethod]
-    public void WholeDecimalsStayFractional()
-        => Assert.AreNotEqual(-1, WrittenArgument("New-KdlNode n ([decimal]'1.0')").IndexOfAny(['.', 'e', 'E']));
+    public void DecimalsKeepTheirScale()
+        => Assert.AreEqual("n 1.0 1.50", Written("New-KdlNode n ([decimal]::Parse('1.0', [cultureinfo]::InvariantCulture)) ([decimal]::Parse('1.50', [cultureinfo]::InvariantCulture))"));
 
     [TestMethod]
     [DataRow("(u8)5")]
