@@ -172,6 +172,8 @@ Creates a node of the same type `Get-KdlNode` outputs, with the same generated m
 
 Version 1.1.0 is the one tested. The plan is to fix the bugs and limitations below later, by PR or by fork. Everything listed was observed directly. Fixes are in progress on the `kdlsharp-parsing-fixes` branch: see [kdlsharp-parsing-fixes.md](kdlsharp-parsing-fixes.md).
 
+This doc describes the module on `main`, built against 1.1.0, including its workarounds for these bugs. On the module's `kdlsharp-parsing-fixes` branch, its code is written as if they were all fixed. That doc covers how it differs.
+
 ### Bugs
 
 These are behaviours that are wrong by the spec, or silently wrong.
@@ -182,7 +184,7 @@ These are behaviours that are wrong by the spec, or silently wrong.
 4. **Precision beyond about 28 significant digits is rounded silently** in `KdlNumber.Value`.
 5. **Negative hex, octal and binary have wrong values.** `-0x10` parses, but reading its value (`KdlNumber.Value`, or `KdlReader.NumberValue`) throws `FormatException`. Negative octal and binary are silently wrong: `-0o20` gives -176, and `-0b10000` gives -80. The `RawText` of all three puts the sign after the prefix, for example `0x-10`.
 6. **Unannotated `#true`, `#false` and `#null` have no `SourcePosition`.** With a type annotation, such as `(tag)#true`, they do have one. Every other value has one, including `#inf`, `#-inf` and `#nan`. Arguments and properties are kept in separate lists, so these keywords' place relative to the *other* list can't be recovered. This is why `RawNodeElements` interleaving is best effort, and three tests marked as expected failures cover it.
-7. **`top() > package` matched nothing** against a document whose only top-level node is `package`. This is probably a query bug, but the query spec's definition of `top()` hasn't been checked.
+7. **`top() > package` matched nothing** against a document whose only top-level node is `package`. The query spec's definition of `top()` supports KdlSharp's reading if taken literally, but contradicts the spec's own example: see [kdlsharp-parsing-fixes.md](kdlsharp-parsing-fixes.md).
 8. **`PreferIdentifierStrings` has no effect.** The formatter writes strings bare only when `PreserveStringTypes` is on and the string's `StringType` is `Identifier`.
 9. **The formatter's identifier check lets number-like strings through.** With the settings above, `1x`, `-1`, `+1`, `.5` and `-.5` are all written bare, so they read back as numbers or fail to parse. Node names and property keys are written bare the same way, and since they aren't `KdlString`s, no string type can make them quoted.
 10. **Numbers from 1e10 up, or below 1e-4, are written in E notation with only 7 significant digits.** For example, `long.MaxValue` gives `9.223372E+018`, and `0.000012345` gives `1.234500E-005`.
