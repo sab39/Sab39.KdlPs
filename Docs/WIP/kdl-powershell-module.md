@@ -192,6 +192,7 @@ These are behaviours that are wrong by the spec, or silently wrong.
 12. **Annotations that need quoting are written bare.** An empty annotation is written as `()`, and `"type/"` as `(type/)`.
 13. **KdlSharp's tests don't cover its formatter's output.** The official test suite tests parsing, and `OfficialTestRunner` uses it that way, comparing parsed structures. That fits the suite's stated purpose, but nothing else in KdlSharp checks what the formatter writes. That's how bugs 8 to 10, 12 and 14 get past a suite that `AGENTS.md` says passes in full. On the fixes branch, `OfficialTestRunner` has a round-trip test (write, parse again, compare), which catches the ones that don't parse back to the same values.
 14. **The default formatter escapes characters outside the BMP as surrogate pairs.** 😀 is written as `"\u{D83D}\u{DE00}"`, which is invalid, because `\u{}` escapes must be Unicode scalar values. KdlSharp's own parser rejects it. `Write-KdlNode` hits this only for strings that have to be quoted, such as `"a 😀"`, since it writes every other string bare.
+15. **Disallowed code points are accepted inside strings and comments, and U+FEFF inside identifiers.** The spec's disallowed literal code points, such as U+200E and U+007F, are only rejected at the start of a token. So `node "a<U+200E>b"` parses. U+FEFF isn't in KdlSharp's disallowed set at all, so the formatter writes it bare in identifiers and literally in strings. Observed on the fixes branch before its fix, where that code is unchanged from 1.1.0.
 
 ### Limitations
 

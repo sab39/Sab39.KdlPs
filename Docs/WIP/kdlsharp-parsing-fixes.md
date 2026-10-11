@@ -65,6 +65,12 @@ Exact source text is a separate type, `SourceText`: a struct giving a position p
 
 The KdlSharp branch is level with or ahead of upstream on KdlSharp's own benchmarks, apart from two small regressions: see [kdlsharp-performance.md](kdlsharp-performance.md).
 
+## Open: KDL spec wording
+
+A candidate for a wording suggestion to kdl-org/kdl. The spec allows U+FEFF only "as the first code point in a document", and its grammar is `document := bom? version? nodes`, but it never says whether the BOM belongs to the encoded file or to the text being parsed. Read literally, a string handed to a parser that starts with U+FEFF is a valid document. But a decoder that removes a file's BOM, as .NET's do, then leaves a second U+FEFF looking like the first. The `bom_twice_fail` test case added to sab39/kdl depends on the answer.
+
+For now, the branch works on the basis that a BOM belongs to the file: KdlSharp's file and stream methods allow the one BOM, which their decoding removes, and `Parse(string)` treats U+FEFF as disallowed everywhere, including at the start.
+
 ## Open: KDL Query Language spec wording
 
 Candidates for wording suggestions to kdl-org/kdl, alongside the test-suite additions. `QUERY-SPEC.md` at kdl-org/kdl commit `89c1087`:
