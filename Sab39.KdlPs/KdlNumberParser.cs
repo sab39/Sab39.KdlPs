@@ -3,19 +3,18 @@ using System.Text;
 namespace Sab39.KdlPs;
 
 /// <summary>
-/// Reads a number from KDL source text. KdlSharp only keeps numbers as decimals, which loses range
-/// and precision, but it does say where each one starts - so they're re-read from there.
+/// Parses a KDL number's source text. KdlSharp only gives numbers as decimals or doubles, so the
+/// types Get-KdlNode outputs, such as BigInteger and the annotated integer types, come from the text.
 /// </summary>
 internal static class KdlNumberParser
 {
     /// <summary>
-    /// Reads the number starting at offset, and checks that what follows it could legitimately end a
-    /// number. KdlSharp has already validated the document, so a FormatException from here means this
-    /// reader and KdlSharp disagree about where the number is.
+    /// KdlSharp has already validated the document, so a FormatException from here means this parser
+    /// and KdlSharp disagree about what the number is.
     /// </summary>
-    public static KdlNumberLiteral Read(string source, int offset)
+    public static KdlNumberLiteral Parse(string source)
     {
-        var position = offset;
+        var position = 0;
         var isNegative = false;
         if (position < source.Length && source[position] is '+' or '-')
         {
@@ -64,10 +63,7 @@ internal static class KdlNumberParser
             }
         }
 
-        if (position < source.Length && !IsDelimiter(source[position]))
-        {
-            throw new FormatException($"Unexpected '{source[position]}' after the number at offset {offset}.");
-        }
+        if (position < source.Length) throw new FormatException($"Unexpected '{source[position]}' in the number {source}.");
 
         return new(isNegative, radix, $"{digits}", isIntegral);
     }
@@ -99,6 +95,4 @@ internal static class KdlNumberParser
             2 => c is '0' or '1',
             _ => char.IsAsciiDigit(c),
         };
-
-    private static bool IsDelimiter(char c) => char.IsWhiteSpace(c) || c is ';' or '{' or '}' or '/' or '\\' or '﻿';
 }

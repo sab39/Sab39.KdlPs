@@ -3,6 +3,7 @@ using System.Management.Automation;
 using KdlSharp;
 using KdlSharp.Exceptions;
 using KdlSharp.Query;
+using KdlSharp.Settings;
 using Microsoft.PowerShell.Commands;
 
 namespace Sab39.KdlPs;
@@ -14,6 +15,9 @@ public sealed class GetKdlNodeCommand : PSCmdlet
     private const string PathSet = "Path";
     private const string LiteralPathSet = "LiteralPath";
     private const string TextSet = "Text";
+
+    // Numbers are converted from their exact source text, which KdlSharp only keeps when asked to.
+    private static readonly KdlParserSettings parserSettings = new() { PreserveSourceText = true };
 
     private CompiledQuery? compiledQuery;
 
@@ -119,7 +123,7 @@ public sealed class GetKdlNodeCommand : PSCmdlet
         KdlDocument document;
         try
         {
-            document = KdlDocument.Parse(text);
+            document = KdlDocument.Parse(text, parserSettings);
         }
         catch (KdlException e)
         {
@@ -127,7 +131,7 @@ public sealed class GetKdlNodeCommand : PSCmdlet
             return;
         }
 
-        KdlNodeBuilder builder = new(text, message => WriteWarning(file is null ? message : $"{file}: {message}"));
+        KdlNodeBuilder builder = new(message => WriteWarning(file is null ? message : $"{file}: {message}"));
         foreach (var node in this.compiledQuery?.Execute(document) ?? document.Nodes)
         {
             var built = builder.Build(node);

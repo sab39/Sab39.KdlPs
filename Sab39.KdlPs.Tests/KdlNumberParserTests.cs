@@ -28,20 +28,11 @@ public sealed class KdlNumberParserTests
     [DataRow("1e200", typeof(double), "1E+200")]
     public void DefaultValueIsTypedByHowTheNumberIsWritten(string text, Type expectedType, string expectedValue)
     {
-        var value = KdlNumberParser.Read(text, 0).ToDefaultValue();
+        var value = KdlNumberParser.Parse(text).ToDefaultValue();
 
         Assert.AreEqual(expectedType, value.GetType());
         Assert.AreEqual(expectedValue, Convert.ToString(value, CultureInfo.InvariantCulture));
     }
-
-    [TestMethod]
-    [DataRow("n 0xFF a=1", 2, "255")]
-    [DataRow("n 1;", 2, "1")]
-    [DataRow("n {\n  c 42}", 8, "42")]
-    [DataRow("n 3 // comment", 2, "3")]
-    [DataRow("n 4\r\n", 2, "4")]
-    public void ReadsFromAnOffsetUpToADelimiter(string source, int offset, string expectedValue)
-        => Assert.AreEqual(expectedValue, Convert.ToString(KdlNumberParser.Read(source, offset).ToDefaultValue(), CultureInfo.InvariantCulture));
 
     [TestMethod]
     [DataRow("1abc")]
@@ -50,25 +41,25 @@ public sealed class KdlNumberParserTests
     [DataRow("_1")]
     [DataRow("1e")]
     public void RejectsWhatIsNotACompleteNumber(string text)
-        => Assert.ThrowsExactly<FormatException>(() => KdlNumberParser.Read(text, 0));
+        => Assert.ThrowsExactly<FormatException>(() => KdlNumberParser.Parse(text));
 
     [TestMethod]
     public void IntegerConversionChecksRange()
     {
-        Assert.AreEqual((byte)255, KdlNumberParser.Read("255", 0).ToInteger<byte>());
-        Assert.ThrowsExactly<OverflowException>(() => KdlNumberParser.Read("256", 0).ToInteger<byte>());
-        Assert.AreEqual(UInt128.MaxValue, KdlNumberParser.Read("340282366920938463463374607431768211455", 0).ToInteger<UInt128>());
+        Assert.AreEqual((byte)255, KdlNumberParser.Parse("255").ToInteger<byte>());
+        Assert.ThrowsExactly<OverflowException>(() => KdlNumberParser.Parse("256").ToInteger<byte>());
+        Assert.AreEqual(UInt128.MaxValue, KdlNumberParser.Parse("340282366920938463463374607431768211455").ToInteger<UInt128>());
     }
 
     [TestMethod]
     public void IntegerConversionRejectsFractions()
-        => Assert.ThrowsExactly<FormatException>(() => KdlNumberParser.Read("1.5", 0).ToInteger<int>());
+        => Assert.ThrowsExactly<FormatException>(() => KdlNumberParser.Parse("1.5").ToInteger<int>());
 
     [TestMethod]
     public void FloatingPointConversionAcceptsAnyLiteral()
     {
-        Assert.AreEqual(1.5f, KdlNumberParser.Read("1.5", 0).ToFloatingPoint<float>());
-        Assert.AreEqual(255.0, KdlNumberParser.Read("0xFF", 0).ToFloatingPoint<double>());
-        Assert.AreEqual(1000m, KdlNumberParser.Read("1e3", 0).ToFloatingPoint<decimal>());
+        Assert.AreEqual(1.5f, KdlNumberParser.Parse("1.5").ToFloatingPoint<float>());
+        Assert.AreEqual(255.0, KdlNumberParser.Parse("0xFF").ToFloatingPoint<double>());
+        Assert.AreEqual(1000m, KdlNumberParser.Parse("1e3").ToFloatingPoint<decimal>());
     }
 }

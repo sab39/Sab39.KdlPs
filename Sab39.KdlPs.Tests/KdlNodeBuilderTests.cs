@@ -245,7 +245,7 @@ public sealed class KdlNodeBuilderTests
     private static (KdlNode Node, List<string> Warnings) Build(string source)
     {
         List<string> warnings = [];
-        KdlNodeBuilder builder = new(source, warnings.Add);
-        return (builder.Build(KdlDocument.Parse(source).Nodes[0]), warnings);
+        KdlNodeBuilder builder = new(warnings.Add);
+        return (builder.Build(KdlDocument.Parse(source, new() { PreserveSourceText = true }).Nodes[0]), warnings);
     }
 }

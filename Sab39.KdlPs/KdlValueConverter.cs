@@ -14,9 +14,8 @@ namespace Sab39.KdlPs;
 /// Turns KdlSharp values into the .NET values Get-KdlNode outputs, applying type annotations. Anything
 /// that can't be converted as annotated is left as it would be unannotated, and reported through warn.
 /// </summary>
-internal sealed class KdlValueConverter(string source, Action<string> warn)
+internal sealed class KdlValueConverter(Action<string> warn)
 {
-    private readonly string source = source;
     private readonly Action<string> warn = warn;
 
     public object? ConvertValue(KdlValue value)
@@ -44,8 +43,7 @@ internal sealed class KdlValueConverter(string source, Action<string> warn)
     {
         if (number.IsSpecial) return this.ConvertSpecialNumber(number, annotation);
 
-        var position = number.SourcePosition ?? throw new InvalidOperationException("KdlSharp gave a parsed number no source position.");
-        var literal = KdlNumberParser.Read(this.source, position.Offset);
+        var literal = KdlNumberParser.Parse(number.RawText ?? throw new InvalidOperationException("KdlSharp gave a parsed number no raw text."));
         if (annotation is null) return literal.ToDefaultValue();
 
         var converter = GetNumberConverter(annotation);

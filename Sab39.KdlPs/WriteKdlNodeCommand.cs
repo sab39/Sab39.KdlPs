@@ -1,7 +1,6 @@
 using System.Management.Automation;
 
 using KdlSharp;
-using KdlSharp.Settings;
 
 namespace Sab39.KdlPs;
 
@@ -13,10 +12,6 @@ namespace Sab39.KdlPs;
 [OutputType(typeof(string))]
 public sealed class WriteKdlNodeCommand : PSCmdlet
 {
-    // Bare strings are only written when string types are preserved; PreferIdentifierStrings alone
-    // has no effect.
-    private static readonly KdlFormatterSettings settings = new() { PreserveStringTypes = true };
-
     private readonly KdlDocument document = new();
 
     [Parameter(Mandatory = true, Position = 0, ValueFromPipeline = true)]
@@ -42,5 +37,5 @@ public sealed class WriteKdlNodeCommand : PSCmdlet
     }
 
     /// <summary>With no nodes, that's an empty string: an empty document is still a document.</summary>
-    protected override void EndProcessing() => WriteObject(this.document.ToKdlString(settings).TrimEnd('\n'));
+    protected override void EndProcessing() => WriteObject(this.document.ToKdlString().TrimEnd('\n'));
 }

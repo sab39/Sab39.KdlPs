@@ -18,18 +18,13 @@ internal static class KdlSharpConverter
     /// <summary>Normalize sorts properties by key, ordinally, as the official test suite's expected files do.</summary>
     public static KdlSharpNode ToKdlSharp(KdlNode node, bool normalize)
     {
-        CheckName(node.NodeName, "node name");
         var annotation = node.RawNodeElements.FirstOrDefault(e => e.Kind == KdlElementKind.NodeName)?.Annotation;
         KdlSharpNode result = annotation is null ? new(node.NodeName) : new(node.NodeName, new KdlAnnotation(annotation));
 
         foreach (var argument in node.NodeArguments) result.AddArgument(ToKdlValue(argument));
 
         var properties = normalize ? node.NodeProperties.OrderBy(p => p.Key, StringComparer.Ordinal) : node.NodeProperties.AsEnumerable();
-        foreach (var (key, value) in properties)
-        {
-            CheckName(key, "property key");
-            result.AddProperty(key, ToKdlValue(value));
-        }
+        foreach (var (key, value) in properties) result.AddProperty(key, ToKdlValue(value));
 
         foreach (var child in node.ChildNodes) result.AddChild(ToKdlSharp(child, normalize));
 
@@ -42,9 +37,7 @@ internal static class KdlSharpConverter
             null => KdlNull.Instance,
             PSObject wrapped => ToKdlValue(wrapped.BaseObject),
             bool b => b ? KdlBoolean.True : KdlBoolean.False,
-
-            // KdlSharp writes a bare string without checking whether it would read back as a number.
-            string s => new KdlString(s, CouldReadAsNumber(s) ? KdlStringType.Quoted : KdlStringType.Identifier),
+            string s => new KdlString(s),
 
             sbyte n => FromInteger(n),
             byte n => FromInteger(n),
@@ -100,20 +93,5 @@ internal static class KdlSharpConverter
         if (converted.Scale == 0) converted *= 1.0m;
 
         return new(converted, KdlNumberFormat.Decimal);
-    }
-
-    /// <summary>
-    /// Names and keys aren't KdlStrings, so there's no way to make KdlSharp quote one that it would
-    /// otherwise write bare and so have read back as a number.
-    /// </summary>
-    private static void CheckName(string name, string description)
-    {
-        if (CouldReadAsNumber(name)) throw new NotSupportedException($"The {description} \"{name}\" can't be written yet.");
-    }
-
-    private static bool CouldReadAsNumber(string text)
-    {
-        var unsigned = text is ['+' or '-', .. var rest] ? rest : text;
-        return unsigned is [>= '0' and <= '9', ..] or ['.', >= '0' and <= '9', ..];
     }
 }
