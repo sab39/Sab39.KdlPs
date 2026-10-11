@@ -1,5 +1,11 @@
+using System.Globalization;
 using System.Management.Automation;
+using System.Net;
+using System.Net.Mail;
+using System.Net.Sockets;
 using System.Numerics;
+using System.Text.RegularExpressions;
+using System.Xml;
 
 using KdlSharp;
 using KdlSharp.Values;
@@ -30,6 +36,9 @@ internal static class KdlSharpConverter
         return result;
     }
 
+    /// <summary>The annotation a value is written with, or null for none.</summary>
+    public static string? GetAnnotation(object? value) => ToAnnotatedText(value)?.Annotation;
+
     private static KdlValue ToKdlValue(object? value)
         => value switch
         {
@@ -54,6 +63,40 @@ internal static class KdlSharpConverter
             decimal n => new KdlNumber(n),
             float n => new KdlNumber(n),
             double n => new KdlNumber(n),
+
+            _ when ToAnnotatedText(value) is var (annotation, text) => new KdlString(text) { TypeAnnotation = new KdlAnnotation(annotation) },
             _ => throw new NotSupportedException($"Values of type {value.GetType()} can't be written yet."),
         };
+
+    /// <summary>
+    /// Values of the types Get-KdlNode reads from annotated strings, as the annotation and the text it
+    /// reads back from. Null for anything else.
+    /// </summary>
+    private static (string Annotation, string Text)? ToAnnotatedText(object? value)
+        => value switch
+        {
+            PSObject wrapped => ToAnnotatedText(wrapped.BaseObject),
+            Guid g => ("uuid", g.ToString("D")),
+            DateTimeOffset d => ("date-time", FormatDateTime(d)),
+
+            // Read back as a DateTimeOffset. Local and unspecified times get the local offset.
+            DateTime d => ("date-time", FormatDateTime(new DateTimeOffset(d))),
+
+            DateOnly d => ("date", d.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture)),
+            TimeOnly t => ("time", t.ToString("HH:mm:ss.FFFFFFF", CultureInfo.InvariantCulture)),
+            TimeSpan t => ("duration", XmlConvert.ToString(t)),
+            MailAddress m => ("email", $"{m}"),
+            RegionInfo r => ("country-2", r.TwoLetterISORegionName),
+            IPAddress a => (a.AddressFamily == AddressFamily.InterNetworkV6 ? "ipv6" : "ipv4", $"{a}"),
+            Uri u => (u.IsAbsoluteUri ? "url" : "url-reference", u.OriginalString),
+
+            // Only the pattern: options have no place in the text
+            Regex r => ("regex", $"{r}"),
+
+            byte[] b => ("base64", Convert.ToBase64String(b)),
+            _ => null,
+        };
+
+    /// <summary>ISO 8601, with a fraction of a second only when there is one.</summary>
+    private static string FormatDateTime(DateTimeOffset value) => value.ToString("yyyy-MM-dd'T'HH:mm:ss.FFFFFFFzzz", CultureInfo.InvariantCulture);
 }

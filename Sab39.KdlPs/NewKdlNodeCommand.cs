@@ -40,8 +40,8 @@ public sealed class NewKdlNodeCommand : PSCmdlet
         KdlElement[] elements =
         [
             new(KdlElementKind.NodeName, null, NodeName, null, null),
-            .. arguments.Select(a => new KdlElement(KdlElementKind.Argument, null, a, null, null)),
-            .. properties.Select(p => new KdlElement(KdlElementKind.Property, p.Key, p.Value, null, null)),
+            .. arguments.Select(a => new KdlElement(KdlElementKind.Argument, null, a, KdlSharpConverter.GetAnnotation(a), null)),
+            .. properties.Select(p => new KdlElement(KdlElementKind.Property, p.Key, p.Value, KdlSharpConverter.GetAnnotation(p.Value), null)),
         ];
 
         // The backing node is built from the values as given, like a read node's from what was read

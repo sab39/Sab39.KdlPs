@@ -1,4 +1,6 @@
 using System.Globalization;
+using System.Net.Mail;
+using System.Text.RegularExpressions;
 
 using static Sab39.KdlPs.Tests.ModuleShell;
 
@@ -66,12 +68,12 @@ public sealed class WriteKdlNodeCommandTests
     [TestMethod]
     public void UnsupportedValuesFailWhenWritten()
     {
-        var created = Run("New-KdlNode n ([datetime]::new(2020, 1, 1))");
-        var written = Written("New-KdlNode n ([datetime]::new(2020, 1, 1))");
+        var created = Run("New-KdlNode n ([version]'1.2.3')");
+        var written = Written("New-KdlNode n ([version]'1.2.3')");
 
         Assert.IsEmpty(created.Errors);
         Assert.StartsWith("Error:", written);
-        Assert.Contains("DateTime", written);
+        Assert.Contains("System.Version", written);
     }
 
     [TestMethod]
@@ -155,6 +157,76 @@ public sealed class WriteKdlNodeCommandTests
     [DataRow("(date)\"2020-01-01\"")]
     [DataRow("(uuid)\"0f8fad5b-d9cb-469f-a165-70867728950e\"")]
     public void AnnotatedValuesRoundTrip(string value) => Assert.AreEqual($"n {value}", Written("Get-KdlNode -Text $arg", $"n {value}"));
+
+    [TestMethod]
+    [DataRow("[guid]'0f8fad5b-d9cb-469f-a165-70867728950e'", "(uuid)\"0f8fad5b-d9cb-469f-a165-70867728950e\"")]
+    [DataRow("[DateTimeOffset]::new(2020, 1, 2, 3, 4, 5, [TimeSpan]::FromHours(-5))", "(date-time)\"2020-01-02T03:04:05-05:00\"")]
+    [DataRow("[DateTimeOffset]::new(2020, 1, 2, 3, 4, 5, [TimeSpan]::Zero).AddTicks(1234567)", "(date-time)\"2020-01-02T03:04:05.1234567+00:00\"")]
+    [DataRow("[DateOnly]::new(2020, 1, 2)", "(date)\"2020-01-02\"")]
+    [DataRow("[TimeOnly]::new(3, 4, 5)", "(time)\"03:04:05\"")]
+    [DataRow("[TimeOnly]::new(3, 4, 5, 678)", "(time)\"03:04:05.678\"")]
+    [DataRow("[TimeSpan]::new(1, 2, 3, 4)", "(duration)P1DT2H3M4S")]
+    [DataRow("[System.Net.Mail.MailAddress]::new('ada@example.com', 'Ada Lovelace')", "(email)\"\\\"Ada Lovelace\\\" <ada@example.com>\"")]
+    [DataRow("[System.Globalization.RegionInfo]::new('GB')", "(country-2)GB")]
+    [DataRow("[ipaddress]'192.168.1.1'", "(ipv4)\"192.168.1.1\"")]
+    [DataRow("[ipaddress]'::1'", "(ipv6)::1")]
+    [DataRow("[uri]'https://example.com/a?b=c'", "(url)\"https://example.com/a?b=c\"")]
+    [DataRow("[uri]::new('docs/page', [UriKind]::Relative)", "(url-reference)\"docs/page\"")]
+    [DataRow("[regex]'a+b'", "(regex)a+b")]
+    [DataRow("[byte[]](1, 2, 3)", "(base64)AQID")]
+    public void AnnotatedTypesRoundTrip(string expression, string expected)
+    {
+        var result = Run(
+            $$"""
+            $value = {{expression}}
+            $written = New-KdlNode n -NodeProperties @{ v = $value } | Write-KdlNode
+            $read = (Get-KdlNode -Text $written).NodeProperties['v']
+            $written
+            , $read
+            , $value
+            """);
+
+        Assert.IsEmpty(result.Errors);
+        Assert.IsEmpty(result.Warnings);
+        Assert.AreEqual($"n v={expected}", result.Output[0].BaseObject);
+        AssertSameValue(result.Output[2].BaseObject, result.Output[1].BaseObject);
+    }
+
+    [TestMethod]
+    public void DateTimeIsWrittenAsDateTimeOffset()
+        => Assert.AreEqual(
+            "n (date-time)\"2020-01-02T03:04:05+00:00\"",
+            Written("New-KdlNode n ([DateTime]::new(2020, 1, 2, 3, 4, 5, [DateTimeKind]::Utc))"));
+
+    [TestMethod]
+    public void NewNodeElementsHaveTheAnnotationTheyWillBeWrittenWith()
+    {
+        var node = (KdlNode)Run("New-KdlNode n ([guid]::Empty) 1 -NodeProperties @{ d = [DateOnly]::new(2020, 1, 2) }").Output.Single().BaseObject;
+
+        CollectionAssert.AreEqual(new[] { null, "uuid", null, "date" }, node.RawNodeElements.Select(e => e.Annotation).ToArray());
+    }
+
+    private static void AssertSameValue(object expected, object actual)
+    {
+        Assert.AreEqual(expected.GetType(), actual.GetType());
+        switch (expected)
+        {
+            case byte[] bytes: CollectionAssert.AreEqual(bytes, (byte[])actual); break;
+            case Regex regex: Assert.AreEqual($"{regex}", $"{actual}"); break;
+
+            case MailAddress address:
+                Assert.AreEqual(address.Address, ((MailAddress)actual).Address);
+                Assert.AreEqual(address.DisplayName, ((MailAddress)actual).DisplayName);
+                break;
+
+            case DateTimeOffset dateTime:
+                Assert.AreEqual(dateTime, actual);
+                Assert.AreEqual(dateTime.Offset, ((DateTimeOffset)actual).Offset);
+                break;
+
+            default: Assert.AreEqual(expected, actual); break;
+        }
+    }
 
     /// <summary>
     /// Pipes the nodes a script outputs to Write-KdlNode. A terminating error comes back as the output
