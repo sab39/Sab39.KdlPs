@@ -45,8 +45,14 @@ The module's code on that branch is written as if every KdlSharp bug and limitat
 
 - `Get-KdlNode` parses with `KdlParserSettings.PreserveSourceText`, and converts each number from `KdlNumber.RawText` rather than re-reading it from the source text at its offset.
 - `RawNodeElements` is ordered by each value's own `SourcePosition`, so its interleaving is exact rather than best effort.
-- `Write-KdlNode` uses KdlSharp's default formatter settings and passes strings as plain `KdlString`s, so it relies on KdlSharp to write strings bare wherever that's valid (bug 8) and to quote number-like strings, names and keys (bug 9). Number-like names and keys aren't a `KdlWriteNotSupported` error there.
-- `Write-KdlNode` constructs each `KdlNumber` directly from the .NET numeric type it has, and KdlSharp writes it in canonical form. Numbers outside `decimal`'s range aren't a `KdlWriteNotSupported` error there, and whole-number doubles get their `.0` from KdlSharp.
+- Each `KdlNode` is backed by a KdlSharp node: the one it was read from, or for `New-KdlNode`, one built from its values when it's first needed.
+- `Write-KdlNode` writes the backing nodes with KdlSharp's default formatter settings. So number forms, value annotations and duplicate properties come out as read, and KdlSharp writes strings bare wherever that's valid (bug 8) and quotes number-like strings, names and keys (bug 9). `-Normalize` writes a copy with properties sorted and only the last of any duplicate kept.
+- Numbers of any .NET numeric type become a `KdlNumber` directly, so neither number-like names and keys nor numbers outside `decimal`'s range are a `KdlWriteNotSupported` error. Values of other types are, when written.
+- `KdlElement` also has `SourceText`, `KeySourceText`, `AnnotationSourceText` and `ValueSourceText`: KdlSharp's exact source text for the whole element and for each part.
+
+### Open: editing nodes on that branch
+
+`Write-KdlNode` writes the backing node, so changes made to a node's `NodeArguments` or `NodeProperties` after `Get-KdlNode` or `New-KdlNode` aren't written. Editing nodes and writing them back is to be supported.
 
 ## Source text on the KdlSharp branch
 
