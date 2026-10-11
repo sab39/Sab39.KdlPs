@@ -176,6 +176,7 @@ public sealed class WriteKdlNodeCommandTests
     [DataRow("[byte[]](1, 2, 3)", "(base64)AQID")]
     [DataRow("[sbyte]-5", "(i8)-5")]
     [DataRow("[int16]-300", "(i16)-300")]
+    [DataRow("[IntPtr]::new(-7)", "(isize)-7")]
     [DataRow("[byte]5", "(u8)5")]
     [DataRow("[uint16]::MaxValue", "(u16)65535")]
     [DataRow("[uint32]::MaxValue", "(u32)4294967295")]
@@ -202,7 +203,7 @@ public sealed class WriteKdlNodeCommandTests
 
     // Read back by magnitude, like any unannotated integer
     [TestMethod]
-    public void LargerSignedIntegersAreUnannotated() => Assert.AreEqual("n 5 5 5 5", Written("New-KdlNode n 5 ([long]5) ([IntPtr]5) ([Int128]5)"));
+    public void LargerSignedIntegersAreUnannotated() => Assert.AreEqual("n 5 5 5", Written("New-KdlNode n 5 ([long]5) ([Int128]5)"));
 
     [TestMethod]
     public void DateTimeIsWrittenAsDateTimeOffset()

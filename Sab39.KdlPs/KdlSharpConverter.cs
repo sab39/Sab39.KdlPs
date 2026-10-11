@@ -47,8 +47,8 @@ internal static class KdlSharpConverter
     }
 
     /// <summary>
-    /// Integer types smaller than int, and unsigned ones, are annotated: a byte was probably meant as one.
-    /// The larger signed types are read back by magnitude.
+    /// Integer types smaller than int, unsigned ones and nint are annotated: none of them ends up as a
+    /// value by accident, so a byte was probably meant as one. long and Int128 are read back by magnitude.
     /// </summary>
     private static string? GetIntegerAnnotation(object? value)
         => value switch
@@ -56,6 +56,7 @@ internal static class KdlSharpConverter
             PSObject wrapped => GetIntegerAnnotation(wrapped.BaseObject),
             sbyte => "i8",
             short => "i16",
+            nint => "isize",
             byte => "u8",
             ushort => "u16",
             uint => "u32",
