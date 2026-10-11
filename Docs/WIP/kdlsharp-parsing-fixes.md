@@ -53,7 +53,7 @@ The module's code on that branch is written as if every KdlSharp bug and limitat
 
 ### Open: editing nodes on that branch
 
-`Write-KdlNode` writes the backing node, so changes made to a node's `NodeArguments` or `NodeProperties` after `Get-KdlNode` or `New-KdlNode` aren't written. Editing nodes and writing them back is to be supported.
+`Write-KdlNode` writes the backing node, so changes made to a node's `NodeArguments` or `NodeProperties` after `Get-KdlNode` or `New-KdlNode` aren't written. Editing nodes and writing them back is to be supported: see [node-mutation.md](node-mutation.md).
 
 ## Source text on the KdlSharp branch
 
