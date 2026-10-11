@@ -7,7 +7,7 @@ Fixes for the KdlSharp bugs and limitations listed under "KdlSharp (1.1.0)" in [
 Three repos are involved, each on a fork with a branch for this work:
 
 - **KdlSharp:** [sab39/KdlSharp](https://github.com/sab39/KdlSharp), a fork of [AndreyAkinshin/KdlSharp](https://github.com/AndreyAkinshin/KdlSharp), branch `kdlsharp-parsing-fixes`. The branch was started from upstream `main`.
-- **KDL spec and test suite:** KdlSharp's `specs` submodule. On the KdlSharp branch, `.gitmodules` points it at [sab39/kdl](https://github.com/sab39/kdl), a fork of [kdl-org/kdl](https://github.com/kdl-org/kdl), where the branch `number-test-cases` adds test cases to the official suite.
+- **KDL spec and test suite:** KdlSharp's `specs` submodule. On the KdlSharp branch, `.gitmodules` points it at [sab39/kdl](https://github.com/sab39/kdl), a fork of [kdl-org/kdl](https://github.com/kdl-org/kdl), where the branch `test-suite-additions` adds test cases to the official suite.
 - **This module:** branch `kdlsharp-parsing-fixes` of this repo.
 
 On the KdlSharp branch, commits that only change the `specs` submodule (its pointer or its URL) are kept apart from all other changes. They are left out of the KdlSharp PR.
