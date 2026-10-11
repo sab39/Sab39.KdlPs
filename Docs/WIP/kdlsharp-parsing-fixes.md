@@ -61,6 +61,10 @@ The module's code on that branch is written as if every KdlSharp bug and limitat
 
 `RawText` properties, such as `KdlNumber.RawText`, promise less: exact with `PreserveSourceText`, otherwise possibly missing or synthesized.
 
+## Open: performance
+
+The KdlSharp branch is slower than upstream on some of KdlSharp's own benchmarks: see [kdlsharp-performance.md](kdlsharp-performance.md).
+
 ## Open: KDL Query Language spec wording
 
 Candidates for wording suggestions to kdl-org/kdl, alongside the test-suite additions. `QUERY-SPEC.md` at kdl-org/kdl commit `89c1087`:
