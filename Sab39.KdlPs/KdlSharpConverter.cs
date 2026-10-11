@@ -9,23 +9,23 @@ using KdlSharpNode = KdlSharp.KdlNode;
 namespace Sab39.KdlPs;
 
 /// <summary>
-/// Turns this module's nodes back into KdlSharp nodes, for KdlSharp to serialize. Values of types it
-/// can't write throw NotSupportedException.
+/// Builds KdlSharp nodes from .NET values, for nodes made by New-KdlNode. Values of types that can't be
+/// written throw NotSupportedException.
 /// </summary>
 internal static class KdlSharpConverter
 {
-    /// <summary>Normalize sorts properties by key, ordinally, as the official test suite's expected files do.</summary>
-    public static KdlSharpNode ToKdlSharp(KdlNode node, bool normalize)
+    public static KdlSharpNode ToKdlSharp(
+        string nodeName,
+        IEnumerable<object?> arguments,
+        IEnumerable<KeyValuePair<string, object?>> properties,
+        IEnumerable<KdlNode> childNodes)
     {
-        var annotation = node.RawNodeElements.FirstOrDefault(e => e.Kind == KdlElementKind.NodeName)?.Annotation;
-        KdlSharpNode result = annotation is null ? new(node.NodeName) : new(node.NodeName, new KdlAnnotation(annotation));
-
-        foreach (var argument in node.NodeArguments) result.AddArgument(ToKdlValue(argument));
-
-        var properties = normalize ? node.NodeProperties.OrderBy(p => p.Key, StringComparer.Ordinal) : node.NodeProperties.AsEnumerable();
+        KdlSharpNode result = new(nodeName);
+        foreach (var argument in arguments) result.AddArgument(ToKdlValue(argument));
         foreach (var (key, value) in properties) result.AddProperty(key, ToKdlValue(value));
 
-        foreach (var child in node.ChildNodes) result.AddChild(ToKdlSharp(child, normalize));
+        // Cloned, since a KdlSharp node can only have one parent
+        foreach (var child in childNodes) result.AddChild(child.Backing.Clone());
 
         return result;
     }

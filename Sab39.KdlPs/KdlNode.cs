@@ -1,3 +1,5 @@
+using KdlSharpNode = KdlSharp.KdlNode;
+
 namespace Sab39.KdlPs;
 
 /// <summary>
@@ -6,7 +8,37 @@ namespace Sab39.KdlPs;
 /// </summary>
 public sealed class KdlNode
 {
+    private readonly Func<KdlSharpNode>? createBacking;
+
+    /// <summary>A node read from KDL, backed by the KdlSharp node it was read from.</summary>
     internal KdlNode(
+        KdlSharpNode backing,
+        IReadOnlyList<object?> nodeArguments,
+        OrderedDictionary<string, object?> nodeProperties,
+        IReadOnlyList<KdlNode> childNodes,
+        IReadOnlyList<KdlElement> rawNodeElements)
+        : this(backing.Name, nodeArguments, nodeProperties, childNodes, rawNodeElements)
+    {
+        Backing = backing;
+    }
+
+    /// <summary>
+    /// A node built from .NET values, backed by a KdlSharp node created on first use. Creating it throws
+    /// NotSupportedException for values that can't be written.
+    /// </summary>
+    internal KdlNode(
+        string nodeName,
+        IReadOnlyList<object?> nodeArguments,
+        OrderedDictionary<string, object?> nodeProperties,
+        IReadOnlyList<KdlNode> childNodes,
+        IReadOnlyList<KdlElement> rawNodeElements,
+        Func<KdlSharpNode> createBacking)
+        : this(nodeName, nodeArguments, nodeProperties, childNodes, rawNodeElements)
+    {
+        this.createBacking = createBacking;
+    }
+
+    private KdlNode(
         string nodeName,
         IReadOnlyList<object?> nodeArguments,
         OrderedDictionary<string, object?> nodeProperties,
@@ -30,13 +62,18 @@ public sealed class KdlNode
 
     public IReadOnlyList<KdlNode> ChildNodes { get; }
 
-    /// <summary>
-    /// The name, then the arguments and properties interleaved as written, duplicates included. The
-    /// interleaving is best effort: KdlSharp gives #true, #false and #null no source position, so one
-    /// of those can land on the wrong side of an element of the other kind. Arguments stay in order
-    /// among themselves, and so do properties.
-    /// </summary>
+    /// <summary>The name, then the arguments and properties interleaved as written, duplicates included.</summary>
     public IReadOnlyList<KdlElement> RawNodeElements { get; }
+
+    /// <summary>
+    /// The KdlSharp node this one is written from. For now, changes made to this node after it's created
+    /// aren't reflected in it.
+    /// </summary>
+    internal KdlSharpNode Backing
+    {
+        get => field ??= this.createBacking!();
+        private init;
+    }
 
     /// <summary>
     /// The generated members the cmdlet attaches to this node's PSObject. Worked out here rather than

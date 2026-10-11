@@ -44,7 +44,18 @@ public sealed class NewKdlNodeCommand : PSCmdlet
             .. properties.Select(p => new KdlElement(KdlElementKind.Property, p.Key, p.Value, null, null)),
         ];
 
-        WriteObject(GetKdlNodeCommand.AttachMembers(new(NodeName, arguments, properties, ChildNodes, elements)));
+        // The backing node is built from the values as given, like a read node's from what was read
+        KdlNode[] childNodes = [.. ChildNodes];
+        KeyValuePair<string, object?>[] givenProperties = [.. properties];
+        var nodeName = NodeName;
+        KdlNode node = new(
+            nodeName,
+            arguments,
+            properties,
+            childNodes,
+            elements,
+            () => KdlSharpConverter.ToKdlSharp(nodeName, arguments, givenProperties, childNodes));
+        WriteObject(GetKdlNodeCommand.AttachMembers(node));
     }
 
     /// <summary>False when the input isn't any of the accepted kinds.</summary>

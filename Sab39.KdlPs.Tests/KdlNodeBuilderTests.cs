@@ -62,6 +62,28 @@ public sealed class KdlNodeBuilderTests
     }
 
     [TestMethod]
+    public void ElementsCarryTheirSourceText()
+    {
+        var (node, _) = Build("(t)\"my node\" ( u8 )0xf_f key = (tag)#true");
+        var (name, argument, property) = (node.RawNodeElements[0], node.RawNodeElements[1], node.RawNodeElements[2]);
+
+        Assert.AreEqual("(t)\"my node\"", name.SourceText?.RawText);
+        Assert.AreEqual("(t)", name.AnnotationSourceText?.RawText);
+        Assert.AreEqual("\"my node\"", name.ValueSourceText?.RawText);
+        Assert.IsNull(name.KeySourceText);
+
+        Assert.AreEqual("( u8 )0xf_f", argument.SourceText?.RawText);
+        Assert.AreEqual("( u8 )", argument.AnnotationSourceText?.RawText);
+        Assert.AreEqual("0xf_f", argument.ValueSourceText?.RawText);
+        Assert.IsNull(argument.KeySourceText);
+
+        Assert.AreEqual("key = (tag)#true", property.SourceText?.RawText);
+        Assert.AreEqual("key", property.KeySourceText?.RawText);
+        Assert.AreEqual("(tag)", property.AnnotationSourceText?.RawText);
+        Assert.AreEqual("#true", property.ValueSourceText?.RawText);
+    }
+
+    [TestMethod]
     public void KeywordValuesKeepTheirOrderWithinTheirOwnKind()
     {
         var (node, _) = Build("n #false a=#true 1 #null b=2 c=#false");

@@ -54,6 +54,27 @@ public sealed class WriteKdlNodeCommandTests
     public void NodeNameAnnotationIsWritten() => Assert.AreEqual("(t)a 1", Written("Get-KdlNode -Text '(t)a 1'"));
 
     [TestMethod]
+    public void ValueAnnotationsAreWritten() => Assert.AreEqual("n (t)1 k=(u8)2", Written("Get-KdlNode -Text 'n (t)1 k=(u8)2'"));
+
+    [TestMethod]
+    public void DuplicatePropertiesAreWrittenAsRead() => Assert.AreEqual("n a=1 b=2 a=3", Written("Get-KdlNode -Text 'n a=1 b=2 a=3'"));
+
+    [TestMethod]
+    public void NormalizeKeepsTheLastOfDuplicateProperties()
+        => Assert.AreEqual("n a=3 b=2", Written("Get-KdlNode -Text 'n b=2 a=1 a=3'", normalize: true));
+
+    [TestMethod]
+    public void UnsupportedValuesFailWhenWritten()
+    {
+        var created = Run("New-KdlNode n ([datetime]::new(2020, 1, 1))");
+        var written = Written("New-KdlNode n ([datetime]::new(2020, 1, 1))");
+
+        Assert.IsEmpty(created.Errors);
+        Assert.StartsWith("Error:", written);
+        Assert.Contains("DateTime", written);
+    }
+
+    [TestMethod]
     [DataRow("x")]
     [DataRow("x-1")]
     [DataRow("-")]
