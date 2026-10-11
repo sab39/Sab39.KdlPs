@@ -39,9 +39,13 @@ The adapter also replaces the convenience members attached as note properties, w
 
 ## `+` and `+=`
 
-PowerShell 7.6 doesn't use C# 14's user-defined compound assignment operators. `$x += y` is always `$x = $x + y` through `op_Addition`, even when the type has `op_AdditionAssignment`, and a type with only `+=` fails. Probed.
+PowerShell 7.6 doesn't use C# 14's user-defined compound assignment operators. `$x += y` is always `$x = $x + y` through `op_Addition`, even when the type has `op_AdditionAssignment`, and a type with only `+=` fails. Probed. Nothing in PowerShell/PowerShell's issues asks for support.
 
 What `+` adds: a key-value pair becomes a property, a `KdlNode` becomes a child, an enumerable adds each of its items as whatever it is, and anything else becomes an argument. So a dictionary adds its entries as properties.
+
+- A `DictionaryEntry` is a key-value pair too: it's what `Hashtable` and `[ordered]@{}` enumerate.
+- A `string` is one value, not an enumerable of characters.
+- A `byte[]` is one value, written as `(base64)`. A list of bytes as arguments is a `List<byte>` or `object[]`.
 
 ## Decided
 
