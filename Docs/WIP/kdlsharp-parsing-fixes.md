@@ -57,13 +57,13 @@ The module's code on that branch is written as if every KdlSharp bug and limitat
 
 ## Source text on the KdlSharp branch
 
-`SourcePosition` is only ever a position. Exact source text is a separate type, `SourceText`: a position plus the source it came from, created only by the parser and only when parsing with `PreserveSourceText`. Everywhere else it's null. So a `SourceText` is always exact when present, and source text is only kept past tokenizing when asked for. It's on `KdlValue` and `KdlNode` (`SourceText` for the value or name alone, `FullSourceText` including the annotation), `KdlAnnotation` (parentheses included) and `KdlProperty` (`KeySourceText`, and `SourceText` from key to value).
+Exact source text is a separate type, `SourceText`: a struct giving a position plus the source it came from, available only for elements parsed with `PreserveSourceText`. Everywhere else it's null. So a `SourceText` is always exact when present, and source text is only kept past tokenizing when asked for. It's on `KdlValue` and `KdlNode` (`SourceText` for the value or name alone, `FullSourceText` including the annotation), `KdlAnnotation` (parentheses included) and `KdlProperty` (`KeySourceText`, and `SourceText` from key to value). How it's stored, so that it costs nothing without `PreserveSourceText`, is in [kdlsharp-performance.md](kdlsharp-performance.md).
 
 `RawText` properties, such as `KdlNumber.RawText`, promise less: exact with `PreserveSourceText`, otherwise possibly missing or synthesized.
 
 ## Open: performance
 
-The KdlSharp branch is slower than upstream on some of KdlSharp's own benchmarks: see [kdlsharp-performance.md](kdlsharp-performance.md).
+The KdlSharp branch is level with or ahead of upstream on KdlSharp's own benchmarks, apart from two small regressions: see [kdlsharp-performance.md](kdlsharp-performance.md).
 
 ## Open: KDL Query Language spec wording
 
