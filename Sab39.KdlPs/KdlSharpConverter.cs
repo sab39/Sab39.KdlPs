@@ -82,6 +82,8 @@ internal static class KdlSharpConverter
     /// <summary>
     /// Goes through the round-trip string form, since a direct cast to decimal keeps only about 15
     /// significant digits. Values beyond decimal's range, or too small for it, can't be written yet.
+    /// A whole number gets a scale of one, so that it's written as 1.0 rather than reading back as an
+    /// integer.
     /// </summary>
     private static KdlNumber FromDouble(double value)
     {
@@ -94,6 +96,8 @@ internal static class KdlSharpConverter
         {
             throw new NotSupportedException($"{text} is outside the range that can be written yet.");
         }
+
+        if (converted.Scale == 0) converted *= 1.0m;
 
         return new(converted, KdlNumberFormat.Decimal);
     }

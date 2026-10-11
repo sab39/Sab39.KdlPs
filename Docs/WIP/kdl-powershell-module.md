@@ -152,8 +152,8 @@ Creates a node of the same type `Get-KdlNode` outputs, with the same generated m
   - numbers outside `decimal`'s range (limitation 6)
   - node names and property keys that look like numbers (bug 9).
 
-  Bug 10 and the whole-number `double` gap below are the exception: they write wrong numbers without an error.
-- **A whole-number `double` is written as an integer.** `[double]1` is written as `1`, which reads back as an `int`. Decimals keep their scale, so `1.0m` is written as `1.0`. PowerShell's `[decimal]'1.0'` cast gives `1` with scale 0, so it gets written as `1`. That's PowerShell's conversion, not the writer.
+  Bug 10 is the exception: it writes wrong numbers without an error.
+- A whole-number `double` or `float` is written with a fraction, such as `1.0`, so it doesn't read back as an integer. Decimals keep their scale, so `1.50m` is written as `1.50`. PowerShell's `[decimal]'1.0'` cast drops the scale and gives `1`, which is then written as `1`.
 
 ## Testing
 

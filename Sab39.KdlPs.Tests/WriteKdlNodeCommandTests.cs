@@ -123,6 +123,18 @@ public sealed class WriteKdlNodeCommandTests
             decimal.Parse(value, CultureInfo.InvariantCulture),
             decimal.Parse(WrittenArgument($"New-KdlNode n ([decimal]'{value}')"), NumberStyles.Float, CultureInfo.InvariantCulture)));
 
+    // Written without a fraction, these would read back as integers.
+    [TestMethod]
+    public void WholeNumberFloatingPointStaysFractional() => Assert.AreEqual("n 1.0 -3.0 2.0", Written("New-KdlNode n ([double]1) ([double]-3) ([float]2)"));
+
+    [TestMethod]
+    public void WholeNumberDoublesRoundTripAsFractions()
+    {
+        var reread = Run("param($kdl) Get-KdlNode -Text $kdl", Written("New-KdlNode n ([double]1)")).Output.Single();
+
+        Assert.IsNotInstanceOfType<int>(((KdlNode)reread.BaseObject).NodeArguments[0]);
+    }
+
     // Parsed rather than cast, since PowerShell's [decimal]'1.0' drops the scale.
     [TestMethod]
     public void DecimalsKeepTheirScale()
