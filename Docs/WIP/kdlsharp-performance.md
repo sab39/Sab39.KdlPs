@@ -21,9 +21,12 @@ This is what goes in the initial PR or PRs. Any of it is open to change if the m
 
 In default mode:
 
+From a full run of every benchmark, with upstream run before and after:
+
+- **Nothing is slower than upstream beyond noise.** Query and schema benchmarks, whose code the branch doesn't change, land between −3% and +7%, the same spread as upstream's own two runs.
 - **Allocations are at or below upstream's on every benchmark**, except `new KdlNumber(decimal)`, which is 16 bytes bigger for `KdlNumber`'s cached-text fields (see Later).
-- **Writing is well ahead of upstream:** string values that are valid identifiers −46%, strings that need quotes −46% (−60% with `PreferIdentifierStrings` off, as upstream effectively writes values), numbers −60%. `html-standard` and POCO serializing were −5 to −13% and −4 to −8% before quoted strings were written straight to the writer, and haven't been measured since.
-- **Parsing is level or ahead** on `html-standard`, `Parse1KB`, `ParseSimple`, `ParseComplex` and all-keyword input (`ParseBooleans`), and within noise on POCO deserializing. `Lexer.Advance` handles printable ASCII with a single range test.
+- **Writing is well ahead of upstream:** `html-standard` −24% and −33% (allocations −48% and −55%), string values that are valid identifiers −48%, strings that need quotes −46% (−60% with `PreferIdentifierStrings` off, as upstream effectively writes values), numbers −62%, POCO serializing −9 to −10%.
+- **Parsing is level or ahead:** `Parse1KB` −12%, `ParseComplex` −6 to −8%, `ParseSimple` −8%, `html-standard` +1%, all-keyword input level, POCO deserializing within noise. `Lexer.Advance` handles printable ASCII with a single range test.
 
 With `PreserveSourceText`, parsing costs about +7–9% time and +6–14% allocations over upstream on ordinary documents, and +18% and +33% on all-keyword input, where every keyword gets its own instance.
 
