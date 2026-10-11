@@ -2,7 +2,34 @@
 
 The aim is for the KdlSharp `kdlsharp-parsing-fixes` branch (see [kdlsharp-parsing-fixes.md](kdlsharp-parsing-fixes.md)) not to regress KdlSharp's own benchmarks (`KdlSharp.Benchmarks`) against upstream, as far as possible. The branch doesn't change the benchmarks project, so both sides run identical benchmark code.
 
-Nothing has been decided about any of the costs below yet. Understanding where they come from comes first.
+## Decided
+
+- **Unannotated `#true`, `#false` and `#null` are the shared singletons when `PreserveSourceText` is off**, with no `SourcePosition`, as upstream has them. Upstream did this on purpose. With `PreserveSourceText`, they stay fresh instances with a position. This is what goes in the initial PR or PRs, and it's open to change if the maintainer prefers otherwise. It should be coded so that switching to either behaviour, or to a separate setting, is a small change.
+- **A string token's `SourcePosition` is only created once it's known to be an argument**, in both modes. A property key's position is only needed with `PreserveSourceText`, for its source text.
+- **`SourceText` is a public `readonly struct`**, and every property that gives one is typed `SourceText?`. It's null when there's no source text, rather than a struct holding a null reference. `SourceText` is new API, so making it a struct breaks nothing. It has its own `ToString` (the raw text) and the public API (`RawText`, `AsSpan()`, `Position`).
+
+## Tentative
+
+### Where source text is stored
+
+Nodes and values in default mode would be exactly upstream's size, with no new fields:
+
+- **`SourcePosition` is unsealed**, which isn't a breaking change. In preserve mode, an element's existing `SourcePosition` property holds an internal sealed subclass, `ExtendedSourcePosition`. It holds the source string and anything else preserve mode needs, such as where the element's type annotation starts. In default mode, the property holds a plain `SourcePosition` as upstream does. The subclass doesn't override `ToString`, so `SourcePosition.ToString()` reads the same in both modes.
+- **`SourceText` wraps an `ExtendedSourcePosition`** and is created when asked for: `SourceText`, `FullSourceText` and the like test the element's `SourcePosition` for the subclass, so no `SourceText` is stored. The raw text isn't cached.
+- **Spans are worked out when asked for:** `FullSourceText` from the annotation start to the end of the element, and a property's `SourceText` from the key to the value.
+- **Property keys:** `KdlProperty` is unsealed, and the parser creates an internal sealed subclass carrying the key's extended position, in preserve mode only. That costs nothing in default mode, and a constructed property never reports a parsed key's source text, even when its value was parsed. Unsealing lets outside code subclass `KdlProperty` too. It isn't a breaking change, but it widens the API a little.
+
+Open within this:
+
+- **`KdlAnnotation.SourceText`:** the annotation object doesn't know which element it belongs to, so it can't reach that element's extended position.
+
+### Fast reject when checking whether a string can be bare
+
+Strings that need quotes should be rejected by a fast first pass before the full identifier check. The approach is open. `GeneratedRegex` isn't available, because the regex source generator only produces code for .NET 7 or later and KdlSharp targets only `netstandard2.1`. Its output for an equivalent regex on .NET 10 or 11 may still suggest how to make the check fast.
+
+## Later
+
+After the improvements we're already confident of are done: measure whether `KdlNumber`'s two cached-text fields (`canonicalText` and `rawText`) are each worth their 8 bytes, or whether one or both should be computed when asked for.
 
 ## Measuring
 
@@ -33,10 +60,9 @@ Against upstream, in default mode (without `PreserveSourceText`):
 
 None of these is decided.
 
-- **Boolean singletons when `PreserveSourceText` is off** (Stuart's idea). This saves the 88 bytes per keyword, but unannotated keywords would go back to having no `SourcePosition` in default mode, unlike every other value. Giving them one was a fix on the branch (`764063d`).
-- **One storage field for position and source texts** (Stuart's idea, worked through with Claude). The `SourceText` setters are all `internal`, so the storage can change without changing the public API. A single private field could hold a `SourcePosition` in default mode. In preserve mode it could hold a `SourceText` (whose `Position` is the element's position), or a holder with more than one source text only where an element needs more. Default mode would then be exactly upstream's size. Preserve mode would also stop allocating each position twice, once as `SourcePosition` and once inside `SourceText`.
+- **`SourcePosition` as a struct** (Stuart's idea). Upstream's class costs 40 bytes per element: a 32-byte object plus an 8-byte reference to it. A struct with four ints, `Length` included, is 20 bytes inline as `SourcePosition?`, with no object. That could put default-mode parsing below upstream's allocations. It's a binary break: every property typed `SourcePosition` becomes `Nullable<SourcePosition>`, so under SemVer it needs a major version. Most source still compiles (`?.`, `== null` and `is { }` all work the same), but code that null-checks and then uses the value directly needs `.Value`, and equality goes from comparing references to comparing values. Claude's view is that it's best offered as a PR of its own, so the fixes don't depend on it. A reference to `SourceText` inside the struct would make it 24–32 bytes inline even in default mode.
+- **What a reference can do that an inline struct can't** (Stuart's point). Default mode only needs one position per element: upstream stores no position for property keys or type annotations, and the decided singletons store none for keywords. Preserve mode needs more: key and annotation positions, plus the source string. A reference can point to one object holding all of that, so a single field can serve both modes. An inline struct can't share its storage with a reference, since overlapping reference and non-reference fields isn't allowed. Combining a struct with preserve-mode extras means an extra reference field, which is null in default mode (28 bytes inline in all), or a side table used only in preserve mode.
 - **Generic node and value types over a struct type parameter**, sized for whether source text is kept (Stuart's idea, which he thinks may be more complex than it's worth). Claude's view is that the cost is high: the generic parameter would spread through the whole public API, and the value types are public and sealed.
-- **Creating a string token's `SourcePosition` only once it's known to be an argument** (Stuart's idea). `Token` keeps its line, column, offset and length, so the position can be created after the next token has been read, in either mode.
-- **Faster quotability checking** (Stuart's idea). KdlSharp targets only `netstandard2.1`, so `SearchValues` and `IndexOfAnyExcept` aren't available without adding a target framework. `MemoryExtensions.IndexOfAny(ReadOnlySpan<char>)` is, and on a modern runtime it runs the runtime's own vectorized implementation, which could reject ASCII characters that need quoting quickly.
+- **`MemoryExtensions.IndexOfAny(ReadOnlySpan<char>)` for the fast reject** (Claude's suggestion). It's available in `netstandard2.1`, and on a modern runtime it runs the runtime's own vectorized implementation. `SearchValues` and `IndexOfAnyExcept` aren't available without adding a target framework.
 - **Checking and escaping in one pass, written straight to the `TextWriter`** (Claude's suggestion). `StringEscaper.Escape` builds a `StringBuilder` and a string for every quoted string, upstream included.
 - **Formatting a constructed number's text only when first needed**, and **returning number text that's already canonical as is** (both Claude's suggestions).
