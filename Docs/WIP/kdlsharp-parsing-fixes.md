@@ -51,6 +51,13 @@ The module's code on that branch is written as if every KdlSharp bug and limitat
 
 `Write-KdlNode` on that branch still has `main`'s workaround for limitation 6: integers and doubles outside `decimal`'s range are a `KdlWriteNotSupported` error, and whole-number doubles are written via a `decimal` with a scale of one. KdlSharp has no way yet to construct a `KdlNumber` for those values, so there's no fixed API for the module to be written against.
 
+## Open: raw text through `SourcePosition` (tentative)
+
+On the KdlSharp branch, raw source text is public as `SourcePosition.RawText`, which is how the source forms of annotations (`KdlAnnotation.SourcePosition`), keys (`KdlProperty.KeySourcePosition`) and whole properties, annotated values and annotated nodes (`KdlProperty.SourcePosition`, `FullSourcePosition`) are reached. That's tentative, because:
+
+- `SourcePosition`'s public API has until now only been about the position. That it kept the source text was an internal detail.
+- It only has text when parsing with `PreserveSourceText`, but some objects have raw text anyway, captured separately or synthesized, such as `KdlNumber.RawText` falling back to the lexer's text. Making `SourcePosition` the only route to raw text rules that out for those cases.
+
 ## Open: KDL Query Language spec wording
 
 Candidates for wording suggestions to kdl-org/kdl, alongside the test-suite additions. `QUERY-SPEC.md` at kdl-org/kdl commit `89c1087`:
