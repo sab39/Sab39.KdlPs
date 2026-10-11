@@ -79,6 +79,7 @@ The spec allows two readings of an annotation on a node name: a suggested type f
 - **Bare numbers** are typed by how the literal is written:
   - Integer literals, meaning no `.` and no exponent (including hex, octal and binary), become `int`, then `long`, then `BigInteger`, whichever is the first to fit.
   - Literals with a `.` or an exponent become `decimal` when the value is within `decimal`'s range and doesn't underflow to zero. Otherwise they become `double`.
+  - Literals beyond `double`'s range are a gap: `1.23e1000` becomes infinity and `1.23e-1000` becomes `0`, with no warning.
   - Numbers are parsed from the source text, not from KdlSharp's `decimal` value. Parsing reads a number starting at the value's `SourcePosition`, then checks that a valid delimiter follows where the number ends. This is internal only and is never exposed as raw text.
 - **Annotated values** use the most specific suitable .NET type, including a dedicated type wherever one exists that the mapping below overlooks:
 
@@ -128,14 +129,40 @@ The output object's type is `KdlNode`. Its default view is a table with these co
 
 `KdlElement` has no raw source text yet. That is not acceptable long term, but a member that is sometimes wrong is worse than none. KdlSharp gives only a start position for values, with nothing for keys, annotations or the end of a value (see KdlSharp below). Working around that from outside the library is fragile. The plan is to fix KdlSharp itself later, by PR or by fork, and then add the raw text. The same fix should give `#true`, `#false` and `#null` source positions, so that `RawNodeElements` interleaving stops being best effort.
 
+## `New-KdlNode`
+
+Creates a node of the same type `Get-KdlNode` outputs, with the same generated members.
+
+- **`-NodeName`:** positional.
+- **`-NodeArguments`:** takes the remaining arguments, so `New-KdlNode foo bar baz` is `New-KdlNode -NodeName foo -NodeArguments bar, baz`. A remaining argument that starts with `-`, such as `-2`, arrives as a string, because PowerShell takes it for a parameter name. `(-2)` gives the number.
+- **`-NodeProperties`:** a hashtable, an ordered dictionary or a custom object. Anything else is a terminating error.
+- **`-ChildNodes`:** nodes from either cmdlet.
+
+`RawNodeElements` is the name, then the arguments, then the properties, with no annotations or source positions.
+
+## `Write-KdlNode`
+
+- Everything piped in becomes one document, output as a single string once the pipeline ends, with no trailing newline. That string's line terminator is the one PowerShell adds to every string it outputs. With no input, the output is an empty string, because an empty document is still a document.
+- **`-Normalize`** writes the normalized form that the official test suite's expected files use. For now, its only effect is to sort properties by key, ordinally. The spec gives property order no meaning, so without `-Normalize` properties are written in `NodeProperties` order.
+- KdlSharp does the serialization, with its default formatter settings except for `PreserveStringTypes`. Its shortcomings are to be fixed in KdlSharp itself (see KdlSharp below). Until then, there are things `Get-KdlNode` can read that can't be written.
+- Strings are written as bare identifiers wherever KdlSharp considers that valid. The exception is a string that starts with a digit, or with a sign or `.` followed by a digit, which is quoted (bug 9).
+- The node-name annotation from `RawNodeElements[0]` is written. Value annotations aren't.
+- Anything that can't be written yet is a terminating `KdlWriteNotSupported` error, not wrong output. That covers:
+  - values other than strings, booleans, null and numbers
+  - numbers outside `decimal`'s range (limitation 6)
+  - node names and property keys that look like numbers (bug 9).
+
+  Bugs 10 and 11 are the exception: they write wrong numbers without an error.
+
 ## Testing
 
 - Unit tests use MSTest on Microsoft.Testing.Platform. `global.json` makes `dotnet test` use that runner.
-- The cmdlet tests (`GetKdlNodeCommandTests`) run `Get-KdlNode` in an in-process PowerShell from `Microsoft.PowerShell.SDK`. The test project references the SDK; the module doesn't.
+- The cmdlet tests run the cmdlets in an in-process PowerShell from `Microsoft.PowerShell.SDK`, set up by `ModuleShell`. The test project references the SDK; the module doesn't.
+- Behaviour that's correct by the spec but known not to work yet, because of a KdlSharp bug or a gap in this module, is covered by tests marked as expected failures.
 - **Execution policy in the hosted PowerShell.** The hosted PowerShell's `$PSHOME` is the test output's `runtimes\win\lib\net10.0` folder, which has no `powershell.config.json`. So it never sees the machine's real policy, all scopes are `Undefined`, and the Windows default of `Restricted` applies. `Restricted` silently skips loading `.ps1xml` format files. Setting `InitialSessionState.ExecutionPolicy` comes too late to prevent that, so the test sessions use the base `AuthorizationManager`, which allows everything.
-- **Planned: the official KDL test suite.** Add [kdl-org/kdl](https://github.com/kdl-org/kdl) as a submodule, as KdlSharp does, and run its test cases against the module, in two tests. Which branch this work starts on is undecided.
-  - **Read matches read:** for each input file, `Get-KdlNode` gives the same node tree as it does for the matching `expected_kdl` file. Names, arguments and children are compared in order. Properties are compared as a set by key, since expected files sort properties and keep only the rightmost duplicate. Nothing tied to the source text is compared, such as source positions or string forms. A `_fail` input must give a `KdlParseFailed` error.
-  - **Write matches expected:** piping `Get-KdlNode` output for each input into a new `Write-KdlNode` cmdlet reproduces the `expected_kdl` file exactly. At first, `Write-KdlNode` only needs to accept `Get-KdlNode` output, which makes it of little use beyond this test; it needs more than that to be generally useful.
+- **The official KDL test suite** is the `specs` submodule ([kdl-org/kdl](https://github.com/kdl-org/kdl), as in KdlSharp). `OfficialTestSuiteTests` runs every input file as a case of two tests. Cases known not to pass yet are listed there with their reasons and run as expected failures.
+  - **Read matches read:** for each input file, `Get-KdlNode` gives the same node tree as it does for the matching `expected_kdl` file. Names, annotations, arguments and children are compared in order. Properties are compared by key, since expected files sort properties and keep only the rightmost duplicate. Values must be equal and of the same type. Nothing tied to the source text is compared, such as source positions or string forms. A `_fail` input must give a `KdlParseFailed` error.
+  - **Write matches expected:** piping `Get-KdlNode` output for each input into `Write-KdlNode -Normalize` reproduces the `expected_kdl` file exactly. The two are compared line by line, which is how PowerShell shows the output string. That also accepts either line ending in the expected file, since with `core.autocrlf` on, the submodule checks out with CRLF.
 - **Agent shells hide execution-policy problems.** Commands run by Claude Code here inherit `PSExecutionPolicyPreference=Bypass`, which every child process, including test runs, picks up. A test that depends on execution policy can pass under an agent and fail in Visual Studio. To reproduce Visual Studio's conditions, clear that variable before running the tests.
 
 ## KdlSharp (1.1.0)
@@ -153,6 +180,12 @@ These are behaviours that are wrong by the spec, or silently wrong.
 5. **Negative hex, octal and binary have wrong values.** `-0x10` parses, but reading its value (`KdlNumber.Value`, or `KdlReader.NumberValue`) throws `FormatException`. Negative octal and binary are silently wrong: `-0o20` gives -176, and `-0b10000` gives -80. The `RawText` of all three puts the sign after the prefix, for example `0x-10`.
 6. **Unannotated `#true`, `#false` and `#null` have no `SourcePosition`.** With a type annotation, such as `(tag)#true`, they do have one. Every other value has one, including `#inf`, `#-inf` and `#nan`. Arguments and properties are kept in separate lists, so these keywords' place relative to the *other* list can't be recovered. This is why `RawNodeElements` interleaving is best effort, and three tests marked as expected failures cover it.
 7. **`top() > package` matched nothing** against a document whose only top-level node is `package`. This is probably a query bug, but the query spec's definition of `top()` hasn't been checked.
+8. **`PreferIdentifierStrings` has no effect.** The formatter writes strings bare only when `PreserveStringTypes` is on and the string's `StringType` is `Identifier`.
+9. **The formatter's identifier check lets number-like strings through.** With the settings above, `1x`, `-1`, `+1`, `.5` and `-.5` are all written bare, so they read back as numbers or fail to parse. Node names and property keys are written bare the same way, and since they aren't `KdlString`s, no string type can make them quoted.
+10. **Numbers from 1e10 up, or below 1e-4, are written in E notation with only 7 significant digits.** For example, `long.MaxValue` gives `9.223372E+018`, and `0.000012345` gives `1.234500E-005`.
+11. **A zero fraction is dropped.** `1.0m` is written as `1`, which reads back as an integer.
+12. **Annotations that need quoting are written bare.** An empty annotation is written as `()`, and `"type/"` as `(type/)`.
+13. **KdlSharp's run of the official test suite doesn't test writing.** `OfficialTestRunner` serializes each document, but it compares only parsed structures, never the written text against `expected_kdl`. That's how bugs 8 to 12 get past a suite that `AGENTS.md` says passes in full.
 
 ### Limitations
 
@@ -163,6 +196,7 @@ These are missing capabilities rather than wrong results.
 3. **An annotation's source form is lost.** `TypeName` is decoded, so `( u8 )` and `(u8)` both give `u8`, and a quoted annotation such as `("my type")` gives `my type`.
 4. **`KdlNumber.RawText` is set only for hex, octal and binary literals.**
 5. **`KdlReader`'s number `RawText` isn't raw:** underscores are stripped (`1_000` gives `1000`). Its string tokens don't record bare, quoted or raw form.
+6. **A decimal-format `KdlNumber` can only be constructed from a `decimal`.** Integers beyond `decimal`'s range, and doubles too large or too small for it, can't be written.
 
 ### Behaviour this module relies on
 

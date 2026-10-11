@@ -11,7 +11,7 @@
     FormatsToProcess = @('Sab39.KdlPs.format.ps1xml')
 
     # Explicit lists rather than wildcards, so PowerShell can tell what the module exports without loading it.
-    CmdletsToExport = @('Get-KdlNode')
+    CmdletsToExport = @('Get-KdlNode', 'New-KdlNode', 'Write-KdlNode')
     FunctionsToExport = @()
     AliasesToExport = @()
     VariablesToExport = @()
