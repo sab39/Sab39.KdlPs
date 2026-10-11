@@ -9,7 +9,6 @@ public sealed class WriteKdlNodeCommandTests
 {
     private const string NumbersAreDecimal = "KdlSharp holds every number as a decimal";
     private const string ExponentFormatting = "KdlSharp writes numbers from 1e10 up, or below 1e-4, in E notation with only 7 significant digits";
-    private const string ZeroFractionDropped = "KdlSharp drops a zero fraction";
     private const string BareNumberLikeNames = "KdlSharp writes number-like node names and property keys bare";
     private const string ValueAnnotationsNotWritten = "value annotations aren't written yet";
 
@@ -124,12 +123,10 @@ public sealed class WriteKdlNodeCommandTests
             decimal.Parse(value, CultureInfo.InvariantCulture),
             decimal.Parse(WrittenArgument($"New-KdlNode n ([decimal]'{value}')"), NumberStyles.Float, CultureInfo.InvariantCulture)));
 
-    // Written without a fraction or exponent, it would read back as an integer.
+    // Parsed rather than cast, since PowerShell's [decimal]'1.0' drops the scale.
     [TestMethod]
-    public void WholeDecimalsStayFractional()
-        => ExpectedFailure.Run(ZeroFractionDropped, () => Assert.AreNotEqual(
-            -1,
-            WrittenArgument("New-KdlNode n ([decimal]'1.0')").IndexOfAny(['.', 'e', 'E'])));
+    public void DecimalsKeepTheirScale()
+        => Assert.AreEqual("n 1.0 1.50", Written("New-KdlNode n ([decimal]::Parse('1.0', [cultureinfo]::InvariantCulture)) ([decimal]::Parse('1.50', [cultureinfo]::InvariantCulture))"));
 
     [TestMethod]
     [DataRow("(u8)5")]

@@ -45,6 +45,40 @@ public sealed class OfficialTestSuiteTests
         (NumbersAreDecimal, ["underscore_in_exponent"]),
         (BeyondDouble, ["sci_notation_large", "sci_notation_small"]));
 
+    /// <summary>Keyed by case and side, as in "hex (expected)", since sometimes only one side fails.</summary>
+    private static readonly Dictionary<string, string> knownRoundTripFailures = ByCase(
+        (ValueAnnotationsNotWritten,
+        [
+            "arg_false_type (input)", "arg_float_type (input)", "arg_float_type (expected)", "arg_hex_type (input)",
+            "arg_hex_type (expected)", "arg_null_type (input)", "arg_raw_string_type (input)", "arg_raw_string_type (expected)",
+            "arg_string_type (input)", "arg_string_type (expected)", "arg_true_type (input)", "arg_type (input)",
+            "arg_zero_type (input)", "blank_arg_type (input)", "blank_arg_type (expected)", "blank_prop_type (input)",
+            "comment_after_arg_type (input)", "comment_after_arg_type (expected)", "comment_after_prop_type (input)",
+            "comment_after_prop_type (expected)", "comment_in_arg_type (input)", "comment_in_arg_type (expected)",
+            "comment_in_prop_type (input)", "comment_in_prop_type (expected)", "prop_false_type (input)",
+            "prop_float_type (input)", "prop_float_type (expected)", "prop_hex_type (input)", "prop_hex_type (expected)",
+            "prop_identifier_type (input)", "prop_null_type (input)", "prop_raw_string_type (input)",
+            "prop_raw_string_type (expected)", "prop_string_type (input)", "prop_string_type (expected)",
+            "prop_true_type (input)", "prop_type (input)", "prop_zero_type (input)", "quoted_arg_type (input)",
+            "quoted_arg_type (expected)", "quoted_prop_type (input)", "raw_arg_type (input)", "raw_prop_type (input)",
+            "space_after_arg_type (input)", "space_after_arg_type (expected)", "space_after_prop_type (input)",
+            "space_after_prop_type (expected)", "space_in_arg_type (input)", "space_in_arg_type (expected)",
+            "space_in_prop_type (input)", "space_in_prop_type (expected)",
+        ]),
+        (AnnotationsNotQuoted,
+        [
+            "blank_arg_type (input)", "blank_arg_type (expected)", "blank_node_type (input)", "blank_prop_type (input)",
+            "quoted_arg_type (input)", "quoted_arg_type (expected)", "quoted_node_type (input)", "quoted_prop_type (input)",
+        ]),
+        (ExponentFormatting,
+        [
+            "hex (input)", "hex (expected)", "hex_int (input)", "hex_int (expected)", "hex_int_underscores (input)",
+            "hex_int_underscores (expected)",
+        ]),
+        (BareNumberLikeNames, ["quoted_node_name (input)", "quoted_node_name (expected)", "quoted_prop_name (input)"]),
+        (NumbersAreDecimal, ["underscore_in_exponent (input)", "underscore_in_exponent (expected)"]),
+        (BeyondDouble, ["sci_notation_small (input)", "sci_notation_small (expected)"]));
+
     /// <summary>Gathers known failures by case, joining the reasons for a case with more than one.</summary>
     private static Dictionary<string, string> ByCase(params (string Reason, string[] Cases)[] reasons)
         => (from r in reasons
@@ -60,6 +94,16 @@ public sealed class OfficialTestSuiteTests
               select new object[] { name };
 
     public static IEnumerable<object[]> InputsWithExpectedOutput => Inputs.Where(i => !IsFailCase((string)i[0]));
+
+    /// <summary>Each input with expected output, and its expected file too unless that's identical to it.</summary>
+    public static IEnumerable<object[]> RoundTripCases
+        => from i in InputsWithExpectedOutput
+           let name = (string)i[0]
+           from side in name == MissingSubmodule || ExpectedIsIdentical(name) ? [InputSide] : new[] { InputSide, ExpectedSide }
+           select new object[] { name, side };
+
+    private const string InputSide = "input";
+    private const string ExpectedSide = "expected";
 
     /// <summary>
     /// The input reads as the same nodes as its expected file does, or for a _fail input, gives a
@@ -96,11 +140,33 @@ public sealed class OfficialTestSuiteTests
             CollectionAssert.AreEqual(File.ReadAllLines(ExpectedFile(name)), written.Split('\n'), $"Written:\n{written}");
         });
 
-    private static void RunCase(Dictionary<string, string> knownFailures, string name, Action test)
+    /// <summary>
+    /// Writing what a file reads as, without normalizing, reads back as the same nodes. That shows the
+    /// output parses to the same values, without prescribing what form it takes.
+    /// </summary>
+    [TestMethod]
+    [DynamicData(nameof(RoundTripCases))]
+    public void ReadWriteReadMatchesRead(string name, string side)
+        => RunCase(knownRoundTripFailures, name, () =>
+        {
+            var file = side == InputSide ? InputFile(name) : ExpectedFile(name);
+            var original = Read(file, side);
+
+            var result = Run("""param($path) try { Get-KdlNode -LiteralPath $path | Write-KdlNode } catch { "Error: $_" }""", file);
+            var written = (string)result.Output.Single().BaseObject;
+
+            var reread = Run("param($kdl) Get-KdlNode -Text $kdl", written);
+            Assert.IsEmpty(reread.Errors, $"Reading back failed: {string.Join("; ", reread.Errors)}\nWritten:\n{written}");
+            CompareNodes([.. reread.Output.Select(o => (KdlNode)o.BaseObject)], original, "");
+        },
+        $"{name} ({side})");
+
+    /// <summary>Key is what the case is listed under in knownFailures, when that isn't just its name.</summary>
+    private static void RunCase(Dictionary<string, string> knownFailures, string name, Action test, string? key = null)
     {
         if (name == MissingSubmodule) Assert.Fail("The specs submodule isn't initialized. Run: git submodule update --init");
 
-        if (knownFailures.TryGetValue(name, out var reason))
+        if (knownFailures.TryGetValue(key ?? name, out var reason))
         {
             ExpectedFailure.Run(reason, test);
         }
@@ -161,6 +227,8 @@ public sealed class OfficialTestSuiteTests
         };
 
     private static bool IsFailCase(string name) => name.EndsWith("_fail", StringComparison.Ordinal);
+
+    private static bool ExpectedIsIdentical(string name) => File.ReadAllText(InputFile(name)) == File.ReadAllText(ExpectedFile(name));
 
     private static string InputFile(string name) => Path.Combine(testCases!, "input", $"{name}.kdl");
 
