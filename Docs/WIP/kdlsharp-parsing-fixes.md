@@ -35,6 +35,7 @@ git clone --recurse-submodules --branch kdlsharp-parsing-fixes https://github.co
 - `Sab39.KdlPs.slnx` has a `/KdlSharp/` solution folder with all four projects from KdlSharp's own solution: `KdlSharp`, `KdlSharp.Tests`, `KdlSharp.Benchmarks` and `KdlSharp.Demo`. Having KdlSharp in the solution also makes Visual Studio's fast up-to-date check notice edits to KdlSharp source.
 - `KdlSharp.Tests` is xUnit v2 on VSTest, which can't run in Microsoft.Testing.Platform mode, so `dotnet test` can't use MTP for the whole solution. The branch therefore has no `global.json`, which puts `dotnet test` in VSTest mode. MTP refuses to run under VSTest on the .NET 10 SDK, so `Directory.Build.rsp` passes `-p:EnableMSTestRunner=false` to every command-line MSBuild run, and this module's tests run through MSTest's VSTest adapter instead. Visual Studio ignores `.rsp` files and runs both test projects together without this.
 - This module's own `specs` submodule points at sab39/kdl, at the same commit KdlSharp's branch uses, so the module's official test suite tests run the new test cases too.
+- No test is marked as an expected failure on this branch. Everything the work here is meant to make pass fails until it does.
 
 Once upstream releases the fixes, the module goes back to a `PackageReference` at the new version, and the branch's reference and solution changes are dropped.
 

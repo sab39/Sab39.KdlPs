@@ -7,12 +7,6 @@ namespace Sab39.KdlPs.Tests;
 [TestClass]
 public sealed class WriteKdlNodeCommandTests
 {
-    private const string NumbersAreDecimal = "KdlSharp holds every number as a decimal";
-    private const string ExponentFormatting = "KdlSharp writes numbers from 1e10 up, or below 1e-4, in E notation with only 7 significant digits";
-    private const string ZeroFractionDropped = "KdlSharp drops a zero fraction";
-    private const string BareNumberLikeNames = "KdlSharp writes number-like node names and property keys bare";
-    private const string ValueAnnotationsNotWritten = "value annotations aren't written yet";
-
     [TestMethod]
     public void NewNodeArgumentsAreWritten() => Assert.AreEqual("foo bar baz", Written("New-KdlNode foo bar baz"));
 
@@ -88,55 +82,46 @@ public sealed class WriteKdlNodeCommandTests
 
     [TestMethod]
     public void LargeIntegersAreWrittenExactly()
-        => ExpectedFailure.Run(ExponentFormatting, () => Assert.AreEqual(
-            "n 10000000000 9223372036854775807",
-            Written("New-KdlNode n 10000000000 ([long]::MaxValue)")));
+        => Assert.AreEqual("n 10000000000 9223372036854775807", Written("New-KdlNode n 10000000000 ([long]::MaxValue)"));
 
     [TestMethod]
-    public void NumberLikeNodeNamesAreQuoted()
-        => ExpectedFailure.Run(BareNumberLikeNames, () => Assert.AreEqual("\"1x\"", Written("New-KdlNode 1x")));
+    public void NumberLikeNodeNamesAreQuoted() => Assert.AreEqual("\"1x\"", Written("New-KdlNode 1x"));
 
     [TestMethod]
-    public void NumberLikePropertyKeysAreQuoted()
-        => ExpectedFailure.Run(BareNumberLikeNames, () => Assert.AreEqual("n \"-1\"=1", Written("New-KdlNode n -NodeProperties @{ '-1' = 1 }")));
+    public void NumberLikePropertyKeysAreQuoted() => Assert.AreEqual("n \"-1\"=1", Written("New-KdlNode n -NodeProperties @{ '-1' = 1 }"));
 
     [TestMethod]
     public void IntegersBeyondDecimalAreWrittenExactly()
-        => ExpectedFailure.Run(NumbersAreDecimal, () => Assert.AreEqual(
-            "n 340282366920938463463374607431768211456",
-            Written("New-KdlNode n ([bigint]::Pow(2, 128))")));
+        => Assert.AreEqual("n 340282366920938463463374607431768211456", Written("New-KdlNode n ([bigint]::Pow(2, 128))"));
 
     [TestMethod]
     [DataRow("1e300")]
     [DataRow("-1e300")]
     [DataRow("1e-30")]
     public void DoublesBeyondDecimalAreWritten(string value)
-        => ExpectedFailure.Run(NumbersAreDecimal, () => Assert.AreEqual(
+        => Assert.AreEqual(
             double.Parse(value, CultureInfo.InvariantCulture),
-            double.Parse(WrittenArgument($"New-KdlNode n ([double]'{value}')"), NumberStyles.Float, CultureInfo.InvariantCulture)));
+            double.Parse(WrittenArgument($"New-KdlNode n ([double]'{value}')"), NumberStyles.Float, CultureInfo.InvariantCulture));
 
     [TestMethod]
     [DataRow("79228162514264337593543950335")]
     [DataRow("123456789012345678901234567")]
     [DataRow("0.000000000000000000001234567890123")]
     public void DecimalsKeepTheirPrecision(string value)
-        => ExpectedFailure.Run(ExponentFormatting, () => Assert.AreEqual(
+        => Assert.AreEqual(
             decimal.Parse(value, CultureInfo.InvariantCulture),
-            decimal.Parse(WrittenArgument($"New-KdlNode n ([decimal]'{value}')"), NumberStyles.Float, CultureInfo.InvariantCulture)));
+            decimal.Parse(WrittenArgument($"New-KdlNode n ([decimal]'{value}')"), NumberStyles.Float, CultureInfo.InvariantCulture));
 
     // Written without a fraction or exponent, it would read back as an integer.
     [TestMethod]
     public void WholeDecimalsStayFractional()
-        => ExpectedFailure.Run(ZeroFractionDropped, () => Assert.AreNotEqual(
-            -1,
-            WrittenArgument("New-KdlNode n ([decimal]'1.0')").IndexOfAny(['.', 'e', 'E'])));
+        => Assert.AreNotEqual(-1, WrittenArgument("New-KdlNode n ([decimal]'1.0')").IndexOfAny(['.', 'e', 'E']));
 
     [TestMethod]
     [DataRow("(u8)5")]
     [DataRow("(date)\"2020-01-01\"")]
     [DataRow("(uuid)\"0f8fad5b-d9cb-469f-a165-70867728950e\"")]
-    public void AnnotatedValuesRoundTrip(string value)
-        => ExpectedFailure.Run(ValueAnnotationsNotWritten, () => Assert.AreEqual($"n {value}", Written("Get-KdlNode -Text $arg", $"n {value}")));
+    public void AnnotatedValuesRoundTrip(string value) => Assert.AreEqual($"n {value}", Written("Get-KdlNode -Text $arg", $"n {value}"));
 
     /// <summary>
     /// Pipes the nodes a script outputs to Write-KdlNode. A terminating error comes back as the output

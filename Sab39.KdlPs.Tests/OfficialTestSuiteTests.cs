@@ -15,42 +15,6 @@ public sealed class OfficialTestSuiteTests
 
     private static readonly string? testCases = FindTestCases();
 
-    private const string ValueAnnotationsNotWritten = "value annotations aren't written yet";
-    private const string AnnotationsNotQuoted = "KdlSharp doesn't quote annotations that need it";
-    private const string ExponentFormatting = "KdlSharp writes numbers from 1e10 up, or below 1e-4, in E notation with only 7 significant digits";
-    private const string BareNumberLikeNames = "KdlSharp writes number-like node names and property keys bare";
-    private const string NumbersAreDecimal = "KdlSharp holds every number as a decimal";
-    private const string BeyondDouble = "numbers beyond double's range read as infinity or zero";
-
-    /// <summary>Cases known not to pass yet, and why. Each runs as an expected failure.</summary>
-    private static readonly Dictionary<string, string> knownReadFailures = [];
-
-    private static readonly Dictionary<string, string> knownWriteFailures = ByCase(
-        (ValueAnnotationsNotWritten,
-        [
-            "arg_false_type", "arg_float_type", "arg_hex_type", "arg_null_type", "arg_raw_string_type", "arg_string_type",
-            "arg_true_type", "arg_type", "arg_zero_type", "blank_arg_type", "blank_prop_type", "comment_after_arg_type",
-            "comment_after_prop_type", "comment_in_arg_type", "comment_in_prop_type", "prop_false_type", "prop_float_type",
-            "prop_hex_type", "prop_identifier_type", "prop_null_type", "prop_raw_string_type", "prop_string_type", "prop_true_type",
-            "prop_type", "prop_zero_type", "quoted_arg_type", "quoted_prop_type", "raw_arg_type", "raw_prop_type",
-            "space_after_arg_type", "space_after_prop_type", "space_in_arg_type", "space_in_prop_type",
-        ]),
-        (AnnotationsNotQuoted, ["blank_arg_type", "blank_node_type", "blank_prop_type", "quoted_arg_type", "quoted_node_type", "quoted_prop_type"]),
-        (ExponentFormatting,
-        [
-            "hex", "hex_int", "hex_int_underscores", "negative_exponent", "no_decimal_exponent", "parse_all_arg_types",
-            "positive_exponent", "prop_float_type",
-        ]),
-        (BareNumberLikeNames, ["quoted_node_name", "quoted_prop_name"]),
-        (NumbersAreDecimal, ["underscore_in_exponent"]),
-        (BeyondDouble, ["sci_notation_large", "sci_notation_small"]));
-
-    /// <summary>Gathers known failures by case, joining the reasons for a case with more than one.</summary>
-    private static Dictionary<string, string> ByCase(params (string Reason, string[] Cases)[] reasons)
-        => (from r in reasons
-            from c in r.Cases
-            group r.Reason by c).ToDictionary(g => g.Key, g => string.Join("; ", g));
-
     public static IEnumerable<object[]> Inputs
         => testCases is null
             ? [[MissingSubmodule]]
@@ -68,7 +32,7 @@ public sealed class OfficialTestSuiteTests
     [TestMethod]
     [DynamicData(nameof(Inputs))]
     public void ReadMatchesRead(string name)
-        => RunCase(knownReadFailures, name, () =>
+        => RunCase(name, () =>
         {
             var actual = Run("param($path) Get-KdlNode -LiteralPath $path", InputFile(name));
             if (IsFailCase(name))
@@ -85,7 +49,7 @@ public sealed class OfficialTestSuiteTests
     [TestMethod]
     [DynamicData(nameof(InputsWithExpectedOutput))]
     public void WriteMatchesExpected(string name)
-        => RunCase(knownWriteFailures, name, () =>
+        => RunCase(name, () =>
         {
             var result = Run("""param($path) try { Get-KdlNode -LiteralPath $path | Write-KdlNode -Normalize } catch { "Error: $_" }""", InputFile(name));
             Assert.IsEmpty(result.Errors, $"Reading the input failed: {string.Join("; ", result.Errors)}");
@@ -96,18 +60,11 @@ public sealed class OfficialTestSuiteTests
             CollectionAssert.AreEqual(File.ReadAllLines(ExpectedFile(name)), written.Split('\n'), $"Written:\n{written}");
         });
 
-    private static void RunCase(Dictionary<string, string> knownFailures, string name, Action test)
+    private static void RunCase(string name, Action test)
     {
         if (name == MissingSubmodule) Assert.Fail("The specs submodule isn't initialized. Run: git submodule update --init");
 
-        if (knownFailures.TryGetValue(name, out var reason))
-        {
-            ExpectedFailure.Run(reason, test);
-        }
-        else
-        {
-            test();
-        }
+        test();
     }
 
     private static KdlNode[] Read(string file, string description)
