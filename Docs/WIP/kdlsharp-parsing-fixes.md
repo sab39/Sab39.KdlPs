@@ -46,6 +46,15 @@ Candidates for wording suggestions to kdl-org/kdl, alongside the test-suite addi
 - **`top()`** is defined as "all toplevel children of the current document", and `top() > []` as equivalent to `top()` on its own. Read literally, the definition makes `top() > x` select children of the top-level nodes, which is how KdlSharp implemented it. That contradicts both the stated equivalence and the spec's own example, `top() > package >> name`. The only reading consistent with all three is that `top()` stands for the document root, with an implicit `> []` when it is a whole selector on its own.
 - **`||`** is described only as "combines selectors", with the example "selects all `b` and `c` elements". Nothing says whether a node matched by both sides is returned once or twice. KdlSharp returns it twice.
 
+## Open: test suite README wording
+
+Another candidate for a suggestion to kdl-org/kdl. The translation rules in `tests/README.md` don't describe what the `expected_kdl` files actually contain:
+
+- The rules say all floats are written in E notation, but the files have `1.5`, `10.0` and `0.0`.
+- Whether an exponent form keeps its `.0` follows the input: `1e10` gives `1E+10`, but `1.0e+10` gives `1.0E+10`.
+
+The suggestion is to define printing rules that correctly describe what the files do.
+
 ## Open: `KdlReader.ReadValue()`
 
 Out of scope for now, and untested by the branch. The values `ReadValue()` returns don't match what `KdlParser` produces for the same source, and contradict `KdlValue.SourcePosition`'s doc comment ("null if constructed programmatically"):

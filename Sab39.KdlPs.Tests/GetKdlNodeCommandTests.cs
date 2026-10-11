@@ -19,6 +19,15 @@ public sealed class GetKdlNodeCommandTests
     }
 
     [TestMethod]
+    public void EmptyTextIsAnEmptyDocument()
+    {
+        var result = Run("param($kdl) Get-KdlNode -Text $kdl", "");
+
+        Assert.IsEmpty(result.Output);
+        Assert.IsEmpty(result.Errors);
+    }
+
+    [TestMethod]
     public void GeneratedMembersSupportSelectObject()
     {
         var result = Run(

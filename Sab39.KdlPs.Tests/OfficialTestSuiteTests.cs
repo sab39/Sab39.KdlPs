@@ -25,6 +25,16 @@ public sealed class OfficialTestSuiteTests
 
     public static IEnumerable<object[]> InputsWithExpectedOutput => Inputs.Where(i => !IsFailCase((string)i[0]));
 
+    /// <summary>Each input with expected output, and its expected file too unless that's identical to it.</summary>
+    public static IEnumerable<object[]> RoundTripCases
+        => from i in InputsWithExpectedOutput
+           let name = (string)i[0]
+           from side in name == MissingSubmodule || ExpectedIsIdentical(name) ? [InputSide] : new[] { InputSide, ExpectedSide }
+           select new object[] { name, side };
+
+    private const string InputSide = "input";
+    private const string ExpectedSide = "expected";
+
     /// <summary>
     /// The input reads as the same nodes as its expected file does, or for a _fail input, gives a
     /// parse error.
@@ -58,6 +68,26 @@ public sealed class OfficialTestSuiteTests
             // Compared as lines, the way PowerShell shows the output string. That also takes either line
             // ending in the expected file, which Git's autocrlf can check out as CRLF.
             CollectionAssert.AreEqual(File.ReadAllLines(ExpectedFile(name)), written.Split('\n'), $"Written:\n{written}");
+        });
+
+    /// <summary>
+    /// Writing what a file reads as, without normalizing, reads back as the same nodes. That shows the
+    /// output parses to the same values, without prescribing what form it takes.
+    /// </summary>
+    [TestMethod]
+    [DynamicData(nameof(RoundTripCases))]
+    public void ReadWriteReadMatchesRead(string name, string side)
+        => RunCase(name, () =>
+        {
+            var file = side == InputSide ? InputFile(name) : ExpectedFile(name);
+            var original = Read(file, side);
+
+            var result = Run("""param($path) try { Get-KdlNode -LiteralPath $path | Write-KdlNode } catch { "Error: $_" }""", file);
+            var written = (string)result.Output.Single().BaseObject;
+
+            var reread = Run("param($kdl) Get-KdlNode -Text $kdl", written);
+            Assert.IsEmpty(reread.Errors, $"Reading back failed: {string.Join("; ", reread.Errors)}\nWritten:\n{written}");
+            CompareNodes([.. reread.Output.Select(o => (KdlNode)o.BaseObject)], original, "");
         });
 
     private static void RunCase(string name, Action test)
@@ -118,6 +148,8 @@ public sealed class OfficialTestSuiteTests
         };
 
     private static bool IsFailCase(string name) => name.EndsWith("_fail", StringComparison.Ordinal);
+
+    private static bool ExpectedIsIdentical(string name) => File.ReadAllText(InputFile(name)) == File.ReadAllText(ExpectedFile(name));
 
     private static string InputFile(string name) => Path.Combine(testCases!, "input", $"{name}.kdl");
 

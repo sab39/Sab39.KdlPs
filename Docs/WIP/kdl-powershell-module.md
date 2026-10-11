@@ -44,7 +44,7 @@ Here `x` is a node whose arguments are `["int", 1]`. In KDL v2, bare identifiers
 
 ## Parameters of `Get-KdlNode`
 
-- **Input:** one of `-Path` (wildcards, positional, from the pipeline), `-LiteralPath` (aliased `PSPath`, so `Get-ChildItem` output binds), or `-Text` (KDL source as a string).
+- **Input:** one of `-Path` (wildcards, positional, from the pipeline), `-LiteralPath` (aliased `PSPath`, so `Get-ChildItem` output binds), or `-Text` (KDL source as a string, where empty text is an empty document).
 - **`-Query`:** a KDL query, executed by KdlSharp. Only the nodes it matches are output. An invalid query is a terminating error.
 - **`-Recurse`:** outputs each node, then all its descendants, depth-first. If a query matches both a node and one of its descendants, the descendant is output twice.
 
@@ -163,6 +163,8 @@ Creates a node of the same type `Get-KdlNode` outputs, with the same generated m
 - **The official KDL test suite** is the `specs` submodule ([kdl-org/kdl](https://github.com/kdl-org/kdl), as in KdlSharp). `OfficialTestSuiteTests` runs every input file as a case of two tests. Cases known not to pass yet are listed there with their reasons and run as expected failures.
   - **Read matches read:** for each input file, `Get-KdlNode` gives the same node tree as it does for the matching `expected_kdl` file. Names, annotations, arguments and children are compared in order. Properties are compared by key, since expected files sort properties and keep only the rightmost duplicate. Values must be equal and of the same type. Nothing tied to the source text is compared, such as source positions or string forms. A `_fail` input must give a `KdlParseFailed` error.
   - **Write matches expected:** piping `Get-KdlNode` output for each input into `Write-KdlNode -Normalize` reproduces the `expected_kdl` file exactly. The two are compared line by line, which is how PowerShell shows the output string. That also accepts either line ending in the expected file, since with `core.autocrlf` on, the submodule checks out with CRLF.
+  - **Read, write, read matches read:** for each input, and for its expected file unless the two are identical, writing what it reads as with plain `Write-KdlNode` reads back as the same nodes, compared the same way as in "read matches read". This checks that the output parses to the same values, without prescribing its form.
+  - The suite itself is meant as a parsing test. Its README says it verifies "the ability to **parse**", and that output may be produced however is needed to match `expected_kdl`. So both write tests go beyond what the suite asks for.
 - **Agent shells hide execution-policy problems.** Commands run by Claude Code here inherit `PSExecutionPolicyPreference=Bypass`, which every child process, including test runs, picks up. A test that depends on execution policy can pass under an agent and fail in Visual Studio. To reproduce Visual Studio's conditions, clear that variable before running the tests.
 
 ## KdlSharp (1.1.0)
@@ -185,7 +187,8 @@ These are behaviours that are wrong by the spec, or silently wrong.
 10. **Numbers from 1e10 up, or below 1e-4, are written in E notation with only 7 significant digits.** For example, `long.MaxValue` gives `9.223372E+018`, and `0.000012345` gives `1.234500E-005`.
 11. **A zero fraction is dropped.** `1.0m` is written as `1`, which reads back as an integer.
 12. **Annotations that need quoting are written bare.** An empty annotation is written as `()`, and `"type/"` as `(type/)`.
-13. **KdlSharp's run of the official test suite doesn't test writing.** `OfficialTestRunner` serializes each document, but it compares only parsed structures, never the written text against `expected_kdl`. That's how bugs 8 to 12 get past a suite that `AGENTS.md` says passes in full.
+13. **KdlSharp's tests don't cover its formatter's output.** The official test suite tests parsing, and `OfficialTestRunner` uses it that way, comparing parsed structures. That fits the suite's stated purpose, but nothing else in KdlSharp checks what the formatter writes. That's how bugs 8 to 12 and 14 get past a suite that `AGENTS.md` says passes in full. On the fixes branch, `OfficialTestRunner` has a round-trip test (write, parse again, compare), which catches the ones that don't parse back to the same values.
+14. **The default formatter escapes characters outside the BMP as surrogate pairs.** 😀 is written as `"\u{D83D}\u{DE00}"`, which is invalid, because `\u{}` escapes must be Unicode scalar values. KdlSharp's own parser rejects it. `Write-KdlNode` doesn't hit this, because it writes such strings bare.
 
 ### Limitations
 

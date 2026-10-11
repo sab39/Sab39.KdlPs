@@ -26,8 +26,9 @@ public sealed class GetKdlNodeCommand : PSCmdlet
     [Alias("PSPath", "LP")]
     public string[] LiteralPath { get; set; } = [];
 
-    /// <summary>KDL source to read directly, instead of from a file.</summary>
+    /// <summary>KDL source to read directly, instead of from a file. Empty text is an empty document.</summary>
     [Parameter(Mandatory = true, ParameterSetName = TextSet)]
+    [AllowEmptyString]
     public string Text { get; set; } = "";
 
     /// <summary>A KDL query; only the nodes it matches are output.</summary>
