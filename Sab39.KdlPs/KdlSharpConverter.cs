@@ -1,4 +1,3 @@
-using System.Globalization;
 using System.Management.Automation;
 using System.Numerics;
 
@@ -10,8 +9,8 @@ using KdlSharpNode = KdlSharp.KdlNode;
 namespace Sab39.KdlPs;
 
 /// <summary>
-/// Turns this module's nodes back into KdlSharp nodes, for KdlSharp to serialize. Anything KdlSharp
-/// can't yet represent or write correctly throws NotSupportedException rather than being written wrong.
+/// Turns this module's nodes back into KdlSharp nodes, for KdlSharp to serialize. Values of types it
+/// can't write throw NotSupportedException.
 /// </summary>
 internal static class KdlSharpConverter
 {
@@ -39,59 +38,22 @@ internal static class KdlSharpConverter
             bool b => b ? KdlBoolean.True : KdlBoolean.False,
             string s => new KdlString(s),
 
-            sbyte n => FromInteger(n),
-            byte n => FromInteger(n),
-            short n => FromInteger(n),
-            ushort n => FromInteger(n),
-            int n => FromInteger(n),
-            uint n => FromInteger(n),
-            long n => FromInteger(n),
-            ulong n => FromInteger(n),
-            nint n => FromInteger(n),
-            nuint n => FromInteger(n),
-            Int128 n => FromInteger(n),
-            UInt128 n => FromInteger(n),
-            BigInteger n => FromInteger(n),
-            decimal n => new KdlNumber(n, KdlNumberFormat.Decimal),
-            float n => FromDouble(n),
-            double n => FromDouble(n),
+            sbyte n => new KdlNumber(n),
+            byte n => new KdlNumber(n),
+            short n => new KdlNumber(n),
+            ushort n => new KdlNumber(n),
+            int n => new KdlNumber(n),
+            uint n => new KdlNumber(n),
+            long n => new KdlNumber(n),
+            ulong n => new KdlNumber(n),
+            nint n => new KdlNumber(n),
+            nuint n => new KdlNumber(n),
+            Int128 n => new KdlNumber((BigInteger)n),
+            UInt128 n => new KdlNumber((BigInteger)n),
+            BigInteger n => new KdlNumber(n),
+            decimal n => new KdlNumber(n),
+            float n => new KdlNumber(n),
+            double n => new KdlNumber(n),
             _ => throw new NotSupportedException($"Values of type {value.GetType()} can't be written yet."),
         };
-
-    /// <summary>KdlSharp holds every number as a decimal, so integers beyond its range can't be written yet.</summary>
-    private static KdlNumber FromInteger<T>(T value)
-        where T : IBinaryInteger<T>
-    {
-        try
-        {
-            return new(decimal.CreateChecked(value), KdlNumberFormat.Decimal);
-        }
-        catch (OverflowException)
-        {
-            throw new NotSupportedException($"{value} is too large to be written yet.");
-        }
-    }
-
-    /// <summary>
-    /// Goes through the round-trip string form, since a direct cast to decimal keeps only about 15
-    /// significant digits. Values beyond decimal's range, or too small for it, can't be written yet.
-    /// A whole number gets a scale of one, so that it's written as 1.0 rather than reading back as an
-    /// integer.
-    /// </summary>
-    private static KdlNumber FromDouble(double value)
-    {
-        if (double.IsPositiveInfinity(value)) return KdlNumber.PositiveInfinity();
-        if (double.IsNegativeInfinity(value)) return KdlNumber.NegativeInfinity();
-        if (double.IsNaN(value)) return KdlNumber.NaN();
-
-        var text = value.ToString("R", CultureInfo.InvariantCulture);
-        if (!decimal.TryParse(text, NumberStyles.Float, CultureInfo.InvariantCulture, out var converted) || (converted == 0 && value != 0))
-        {
-            throw new NotSupportedException($"{text} is outside the range that can be written yet.");
-        }
-
-        if (converted.Scale == 0) converted *= 1.0m;
-
-        return new(converted, KdlNumberFormat.Decimal);
-    }
 }
