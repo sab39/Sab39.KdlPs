@@ -51,12 +51,11 @@ The module's code on that branch is written as if every KdlSharp bug and limitat
 
 `Write-KdlNode` on that branch still has `main`'s workaround for limitation 6: integers and doubles outside `decimal`'s range are a `KdlWriteNotSupported` error, and whole-number doubles are written via a `decimal` with a scale of one. KdlSharp has no way yet to construct a `KdlNumber` for those values, so there's no fixed API for the module to be written against.
 
-## Open: raw text through `SourcePosition` (tentative)
+## Source text on the KdlSharp branch
 
-On the KdlSharp branch, raw source text is public as `SourcePosition.RawText`, which is how the source forms of annotations (`KdlAnnotation.SourcePosition`), keys (`KdlProperty.KeySourcePosition`) and whole properties, annotated values and annotated nodes (`KdlProperty.SourcePosition`, `FullSourcePosition`) are reached. That's tentative, because:
+`SourcePosition` is only ever a position. Exact source text is a separate type, `SourceText`: a position plus the source it came from, created only by the parser and only when parsing with `PreserveSourceText`. Everywhere else it's null. So a `SourceText` is always exact when present, and source text is only kept past tokenizing when asked for. It's on `KdlValue` and `KdlNode` (`SourceText` for the value or name alone, `FullSourceText` including the annotation), `KdlAnnotation` (parentheses included) and `KdlProperty` (`KeySourceText`, and `SourceText` from key to value).
 
-- `SourcePosition`'s public API has until now only been about the position. That it kept the source text was an internal detail.
-- It only has text when parsing with `PreserveSourceText`, but some objects have raw text anyway, captured separately or synthesized, such as `KdlNumber.RawText` falling back to the lexer's text. Making `SourcePosition` the only route to raw text rules that out for those cases.
+`RawText` properties, such as `KdlNumber.RawText`, promise less: exact with `PreserveSourceText`, otherwise possibly missing or synthesized.
 
 ## Open: KDL Query Language spec wording
 
